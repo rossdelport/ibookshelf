@@ -12,24 +12,21 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding/genres" />
         <Stack.Screen name="onboarding/avatar" />
         <Stack.Screen name="onboarding/soul" />
+        <Stack.Screen name="onboarding/shelf" />
+        <Stack.Screen name="onboarding/signup" />
+        <Stack.Screen name="onboarding/scan" />
+        <Stack.Screen name="onboarding/circle" />
+        <Stack.Screen name="onboarding/paywall" />
         <Stack.Screen
           name="onboarding/soul-detail"
           options={{
             presentation: 'transparentModal',
-            animation: 'slide_from_bottom',
+            // No native transition — the screen drives its own rotate/scale + scrim fade
+            animation: 'none',
             headerShown: false,
           }}
         />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="book/[id]"
-          options={{
-            headerShown: true,
-            headerTitle: '',
-            headerTransparent: true,
-            presentation: 'card',
-          }}
-        />
       </Stack>
     </>
   );

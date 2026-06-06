@@ -1,21 +1,35 @@
-import { StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router, useLocalSearchParams } from 'expo-router';
 import { ANIMALS } from '../../constants/animals';
 import { useUserStore } from '../../store/userStore';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
-const MUTE  = '#A89A88';
+const BROWN = '#8B5E3C';
 const AMBER = '#E8A838';
 const WHITE = '#FFFFFF';
 
 export default function SoulDetailScreen() {
   const { animal: animalName } = useLocalSearchParams<{ animal: string }>();
   const { setSoulAnimal } = useUserStore();
-  const insets = useSafeAreaInsets();
+
+  // Drives both the scrim fade and the card rotate/scale/opacity
+  const anim = useRef(new Animated.Value(0)).current;
+  const closing = useRef(false);
 
   const animal = ANIMALS.find((a) => a.name === animalName);
+
+  // Animate the card in (rotate + expand) on mount
+  useEffect(() => {
+    Animated.timing(anim, {
+      toValue: 1,
+      duration: 440,
+      easing: Easing.bezier(0.22, 1.4, 0.4, 1), // overshoot pop (DESIGN.md §4)
+      useNativeDriver: true,
+    }).start();
+  }, [anim]);
 
   // Fallback — should never happen in practice
   if (!animal) {
@@ -23,155 +37,190 @@ export default function SoulDetailScreen() {
     return null;
   }
 
-  function confirm() {
-    setSoulAnimal(animal!.name);
-    // Replace so back-stack doesn't return here after confirming
-    router.replace('/(tabs)');
+  /** Reverse the same rotate/expand, then pop the modal (when NOT chosen) */
+  function dismiss() {
+    if (closing.current) return;
+    closing.current = true;
+    Animated.timing(anim, {
+      toValue: 0,
+      duration: 300,
+      easing: Easing.bezier(0.4, 0, 0.7, 0.2),
+      useNativeDriver: true,
+    }).start(() => router.back());
   }
 
+  function confirm() {
+    setSoulAnimal(animal!.name);
+    // Chosen — go forward (no reverse animation)
+    router.replace('/onboarding/shelf');
+  }
+
+  const scale   = anim.interpolate({ inputRange: [0, 1], outputRange: [0.7, 1] });
+  const rotate  = anim.interpolate({ inputRange: [0, 1], outputRange: ['-12deg', '0deg'] });
+  const cardOpacity  = anim.interpolate({ inputRange: [0, 0.45, 1], outputRange: [0, 1, 1] });
+  const scrimOpacity = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1], extrapolate: 'clamp' });
+
   return (
-    // Full-screen scrim — tap outside card to dismiss
-    <TouchableWithoutFeedback onPress={() => router.back()}>
-      <View style={sd.scrim}>
-        {/* Card — stop tap propagation so card doesn't dismiss itself */}
-        <TouchableWithoutFeedback onPress={() => {}}>
-          <View style={[sd.card, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+    <View style={sd.root}>
+      {/* ── Warm radial scrim — tap outside to dismiss ─── */}
+      <TouchableWithoutFeedback onPress={dismiss}>
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: scrimOpacity }]}>
+          <LinearGradient
+            colors={['rgba(74,46,20,0.74)', 'rgba(38,26,14,0.93)']}
+            start={{ x: 0.5, y: 0.15 }}
+            end={{ x: 0.5, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </Animated.View>
+      </TouchableWithoutFeedback>
 
-            {/* ── Emoji tile ─────────────────────────────── */}
-            <View style={sd.tile}>
-              <Text style={sd.tileEmoji}>{animal.emoji}</Text>
-            </View>
+      {/* ── Centered modal card ────────────────────────── */}
+      <Animated.View
+        style={[
+          sd.card,
+          { opacity: cardOpacity, transform: [{ scale }, { rotate }] },
+        ]}
+      >
+        {/* Emoji tile — amber-pale radial gradient (§5) */}
+        <View style={sd.tileWrap}>
+          <LinearGradient
+            colors={['#FBEACB', '#EFC471']}
+            start={{ x: 0.5, y: 0.1 }}
+            end={{ x: 0.5, y: 1 }}
+            style={sd.tile}
+          >
+            <Text style={sd.tileEmoji}>{animal.emoji}</Text>
+          </LinearGradient>
+        </View>
 
-            {/* ── Kicker — §3: 12.5px / 800 / uppercase / letter-spacing 1.4 / #C99A4C */}
-            <Text style={sd.kicker}>{animal.archetype}</Text>
+        {/* Kicker — §3: 12.5/800/uppercase/letter-spacing 1.4/#C99A4C */}
+        <Text style={sd.kicker}>{animal.archetype}</Text>
 
-            {/* ── Animal name — Lora serif §3 "Onboarding title (serif variant)" */}
-            <Text style={sd.name}>{animal.name}</Text>
+        {/* Name — Lora serif §3 onboarding title */}
+        <Text style={sd.name}>{animal.name}</Text>
 
-            {/* ── Description — body text §3: 14.5px / 500 / line-height 1.5 */}
-            <Text style={sd.desc}>{animal.description}</Text>
+        {/* Description */}
+        <Text style={sd.desc}>{animal.description}</Text>
 
-            {/* ── CTA: This is me (amber ob-cta §5) */}
-            <TouchableOpacity style={sd.cta} onPress={confirm} activeOpacity={0.85}>
-              <Text style={sd.ctaText}>This is me  ✓</Text>
-            </TouchableOpacity>
+        {/* Buttons */}
+        <View style={sd.btns}>
+          <TouchableOpacity style={sd.cta} onPress={confirm} activeOpacity={0.85}>
+            <Text style={sd.ctaText}>This is me  ✓</Text>
+          </TouchableOpacity>
 
-            {/* ── Ghost: Keep exploring (§5 ghost variant) */}
-            <TouchableOpacity style={sd.ghost} onPress={() => router.back()} activeOpacity={0.7}>
-              <Text style={sd.ghostText}>← Keep exploring</Text>
-            </TouchableOpacity>
-
-          </View>
-        </TouchableWithoutFeedback>
-      </View>
-    </TouchableWithoutFeedback>
+          <TouchableOpacity style={sd.ghost} onPress={dismiss} activeOpacity={0.7}>
+            <Text style={sd.ghostText}>← Keep exploring</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
+    </View>
   );
 }
 
 const sd = StyleSheet.create({
-  // Dark scrim fills the whole screen
-  scrim: {
+  // Full-screen, centered (design: soul-overlay align/justify center, padding 28)
+  root: {
     flex: 1,
-    backgroundColor: 'rgba(26,16,8,0.72)',
-    justifyContent: 'flex-end',
-  },
-
-  // Floating card — Paper bg, rounded top corners, big card radius (§4: 22px)
-  card: {
-    backgroundColor: '#FAF8F3',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingTop: 32,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    gap: 0,
-    // Subtle lift shadow
-    shadowColor: '#1A1008',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 16,
-  },
-
-  // ── Emoji tile — warm sub-surface (#F6EFE2), large rounded square (§5)
-  tile: {
-    width: 108,
-    height: 108,
-    borderRadius: 26,
-    backgroundColor: '#F6EFE2',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    paddingHorizontal: 28,
   },
-  tileEmoji: { fontSize: 64 },
 
-  // ── Kicker — §3 kicker/eyebrow style
+  // Floating card — cream #FBF7EF, all corners 28, big soft shadow
+  card: {
+    width: '100%',
+    backgroundColor: '#FBF7EF',
+    borderRadius: 28,
+    paddingTop: 30,
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 30 },
+    shadowOpacity: 0.4,
+    shadowRadius: 50,
+    elevation: 24,
+  },
+
+  // Emoji tile — 128×128, radius 36, amber-pale gradient, glow shadow
+  tileWrap: {
+    marginBottom: 18,
+    borderRadius: 36,
+    shadowColor: '#D98C24',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 28,
+    elevation: 8,
+  },
+  tile: {
+    width: 128,
+    height: 128,
+    borderRadius: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tileEmoji: { fontSize: 70 },
+
+  // Kicker
   kicker: {
     fontSize: 12.5,
     fontWeight: '800',
     color: '#C99A4C',
     letterSpacing: 1.4,
     textTransform: 'uppercase',
-    marginBottom: 6,
     textAlign: 'center',
   },
 
-  // ── Name — Lora serif §3 "Onboarding title"
+  // Name — Lora serif (Georgia fallback)
   name: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: '600',
     fontFamily: 'Georgia',
     color: INK,
-    letterSpacing: -0.3,
-    marginBottom: 16,
+    marginTop: 4,
     textAlign: 'center',
   },
 
-  // ── Description — §3 body text
+  // Description — §3 body text
   desc: {
     fontSize: 14.5,
     fontWeight: '500',
-    color: '#463E33',
+    color: '#6b6052',
     lineHeight: 22,
     textAlign: 'center',
-    marginBottom: 28,
+    marginTop: 12,
   },
 
-  // ── CTA button — amber ob-cta §5
+  // Buttons — column, gap 10, margin-top 24
+  btns: { alignSelf: 'stretch', marginTop: 24, gap: 10 },
+
+  // CTA — amber ob-cta §5
   cta: {
-    alignSelf: 'stretch',
     backgroundColor: AMBER,
     borderRadius: 18,
-    paddingVertical: 19,
+    paddingVertical: 18,
     alignItems: 'center',
-    marginBottom: 12,
     shadowColor: '#E29A2A',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.38,
+    shadowRadius: 20,
     elevation: 5,
   },
-  ctaText: {
-    color: WHITE,
-    fontSize: 17,
-    fontWeight: '800',
-    letterSpacing: 0.2,
-  },
+  ctaText: { color: WHITE, fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
 
-  // ── Ghost button — §5 ghost variant: white bg, brown text, hairline border
+  // Ghost — white bg, brown text, hairline border (§5)
   ghost: {
-    alignSelf: 'stretch',
     backgroundColor: WHITE,
     borderRadius: 18,
     borderWidth: 0.5,
     borderColor: 'rgba(139,94,60,0.18)',
-    paddingVertical: 18,
+    paddingVertical: 17,
     alignItems: 'center',
+    shadowColor: BROWN,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 1,
   },
-  ghostText: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: INK,
-    letterSpacing: 0.1,
-  },
+  ghostText: { fontSize: 15, fontWeight: '700', color: BROWN, letterSpacing: 0.1 },
 });
