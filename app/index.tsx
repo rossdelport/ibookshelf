@@ -19,7 +19,7 @@ export default function WelcomeScreen() {
           />
         </View>
 
-        <Text style={styles.title}>Fable</Text>
+        <Text style={styles.title}>iBookshelf</Text>
         <Text style={styles.subtitle}>Your cosy reading companion</Text>
         <Text style={styles.tagline}>
           Track every book, keep your streak{'\n'}alive, and find your reading kin.

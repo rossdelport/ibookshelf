@@ -11,8 +11,8 @@ const PAPER   = '#FAF8F3';
 const WHITE   = '#FFFFFF';
 const GREEN   = '#5BA66E';
 
-const TOTAL_STEPS  = 10;
-const CURRENT_STEP = 8; // segments 0–8 filled (screen 09)
+const TOTAL_STEPS  = 11;
+const CURRENT_STEP = 7; // segments 0–7 filled (screen 09)
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -120,10 +120,10 @@ export default function ScanScreen() {
 
       {/* ── Footer ───────────────────────────────────── */}
       <View style={sc.footer}>
-        <TouchableOpacity style={sc.cta} onPress={() => router.push('/onboarding/circle')} activeOpacity={0.85}>
+        <TouchableOpacity style={sc.cta} onPress={() => router.push('/onboarding/review')} activeOpacity={0.85}>
           <Text style={sc.ctaText}>Continue  →</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/onboarding/circle')} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => router.push('/onboarding/review')} activeOpacity={0.7}>
           <Text style={sc.tinyLink}>I'll add books later</Text>
         </TouchableOpacity>
       </View>

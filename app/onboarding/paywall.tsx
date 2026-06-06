@@ -10,7 +10,7 @@ const MUTE  = '#A89A88';
 const AMBER = '#E8A838';
 const WHITE = '#FFFFFF';
 
-const TOTAL_STEPS  = 10;
+const TOTAL_STEPS  = 11;
 const CURRENT_STEP = 10; // all segments filled (screen 11 — final)
 
 // ── Content (from design ObPaywall) ────────────────────────────────────────
@@ -92,7 +92,7 @@ export default function PaywallScreen() {
 
         {/* ── Head (centered serif) ──────────────────── */}
         <View style={pw.head}>
-          <Text style={pw.title}>Unlock the full{'\n'}Fable experience.</Text>
+          <Text style={pw.title}>Unlock the full{'\n'}iBookshelf experience.</Text>
         </View>
 
         {/* ── Scrollable content ─────────────────────── */}
@@ -184,10 +184,10 @@ const pw = StyleSheet.create({
   segActive:   { backgroundColor: AMBER },
 
   // ── Head — centered Lora serif (§3 ob-title.serif)
-  head: { paddingHorizontal: 22, marginTop: 24, alignItems: 'center' },
+  head: { paddingHorizontal: 22, marginTop: 24, alignItems: 'flex-start' },
   title: {
     fontSize: 30, fontWeight: '600', fontFamily: 'Georgia', color: INK,
-    letterSpacing: -0.4, textAlign: 'center', lineHeight: 36,
+    letterSpacing: -0.4, lineHeight: 36,
   },
 
   // ── Scroll body

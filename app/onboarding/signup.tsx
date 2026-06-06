@@ -11,8 +11,8 @@ const PAPER = '#FAF8F3';
 const WHITE = '#FFFFFF';
 const BROWN = '#8B5E3C';
 
-const TOTAL_STEPS  = 10;
-const CURRENT_STEP = 7; // segments 0–7 filled (screen 08)
+const TOTAL_STEPS  = 11;
+const CURRENT_STEP = 6; // segments 0–6 filled (screen 08)
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 

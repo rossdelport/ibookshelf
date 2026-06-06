@@ -9,7 +9,7 @@ const AMBER  = '#E8A838';
 const PAPER  = '#FAF8F3';
 const WHITE  = '#FFFFFF';
 
-const TOTAL_STEPS  = 10;
+const TOTAL_STEPS  = 11;
 const CURRENT_STEP = 1; // segments 0–1 filled (screen 03)
 
 function Chevron() {
@@ -64,7 +64,7 @@ export default function MirrorScreen() {
         </View>
 
         {/* Tagline */}
-        <Text style={mir.tagline}>Fable changes that.</Text>
+        <Text style={mir.tagline}>iBookshelf changes that.</Text>
       </View>
 
       {/* ── Footer CTA ─────────────────────────────────── */}

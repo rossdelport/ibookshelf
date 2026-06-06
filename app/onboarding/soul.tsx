@@ -10,7 +10,7 @@ const AMBER = '#E8A838';
 const PAPER = '#FAF8F3';
 const WHITE = '#FFFFFF';
 
-const TOTAL_STEPS  = 10;
+const TOTAL_STEPS  = 11;
 const CURRENT_STEP = 4; // segments 0–4 filled (screen 06)
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -124,8 +124,8 @@ const soul = StyleSheet.create({
   segActive:   { backgroundColor: AMBER },
 
   // ── Title — Georgia (Lora fallback) §3
-  title: { fontSize: 30, fontWeight: '600', fontFamily: 'Georgia', color: INK, textAlign: 'center', marginTop: 24, letterSpacing: -0.3 },
-  sub:   { fontSize: 14, fontWeight: '500', color: MUTE, textAlign: 'center', marginTop: 6, marginBottom: 24 },
+  title: { fontSize: 30, fontWeight: '600', fontFamily: 'Georgia', color: INK, marginTop: 24, letterSpacing: -0.3 },
+  sub:   { fontSize: 14, fontWeight: '500', color: MUTE, marginTop: 6, marginBottom: 24 },
 
   // ── Grid
   grid:            { gap: 12 },

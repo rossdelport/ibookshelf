@@ -15,6 +15,7 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding/shelf" />
         <Stack.Screen name="onboarding/signup" />
         <Stack.Screen name="onboarding/scan" />
+        <Stack.Screen name="onboarding/review" />
         <Stack.Screen name="onboarding/circle" />
         <Stack.Screen name="onboarding/paywall" />
         <Stack.Screen

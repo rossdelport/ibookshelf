@@ -10,7 +10,7 @@ const AMBER = '#E8A838';
 const PAPER = '#FAF8F3';
 const WHITE = '#FFFFFF';
 
-const TOTAL_STEPS  = 10;
+const TOTAL_STEPS  = 11;
 const CURRENT_STEP = 9; // segments 0–9 filled (screen 10)
 
 // ── Reader data (from design ObCircle) ─────────────────────────────────────

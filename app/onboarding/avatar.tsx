@@ -12,7 +12,7 @@ const AMBER = '#E8A838';
 const PAPER = '#FAF8F3';
 const WHITE = '#FFFFFF';
 
-const TOTAL_STEPS  = 10;
+const TOTAL_STEPS  = 11;
 const CURRENT_STEP = 3; // 4 segments filled (screen 05)
 
 // ── Avatar data ────────────────────────────────────────────────────────────
@@ -239,8 +239,8 @@ const av = StyleSheet.create({
   segActive:   { backgroundColor: AMBER },
 
   // ── Title
-  title: { fontSize: 26, fontWeight: '800', color: INK, letterSpacing: -0.4, marginTop: 22, textAlign: 'center' },
-  sub:   { fontSize: 14, fontWeight: '500', color: MUTE, textAlign: 'center', marginTop: 6 },
+  title: { fontSize: 26, fontWeight: '800', color: INK, letterSpacing: -0.4, marginTop: 22 },
+  sub:   { fontSize: 14, fontWeight: '500', color: MUTE, marginTop: 6 },
 
   // ── Avatar
   avatarWrap: {

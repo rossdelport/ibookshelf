@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -11,7 +11,7 @@ const PAPER  = '#FAF8F3';
 const WHITE  = '#FFFFFF';
 const BROWN  = 'rgba(139,94,60,0.12)';
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 const CURRENT_STEP = 0; // 0-indexed; first question in the onboarding flow
 
 const OPTIONS = [
@@ -31,7 +31,20 @@ function Chevron() {
 }
 
 export default function UnreadScreen() {
-  const [selected, setSelected] = useState<number | null>(2); // matches screenshot
+  const [selected, setSelected] = useState<number | null>(null); // none preselected
+
+  // Fade/slide the Continue button in once a choice is made
+  const appear = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (selected !== null) {
+      Animated.timing(appear, {
+        toValue: 1,
+        duration: 280,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [selected, appear]);
 
   return (
     <SafeAreaView style={ob.safe}>
@@ -49,7 +62,7 @@ export default function UnreadScreen() {
           {Array.from({ length: TOTAL_STEPS }).map((_, i) => (
             <View
               key={i}
-              style={[ob.progressSeg, i === CURRENT_STEP && ob.progressSegActive]}
+              style={[ob.progressSeg, i <= CURRENT_STEP && ob.progressSegActive]}
             />
           ))}
         </View>
@@ -83,17 +96,24 @@ export default function UnreadScreen() {
         })}
       </View>
 
-      {/* ── Footer CTA ───────────────────────────────────── */}
+      {/* ── Footer CTA — appears only after a choice is made ─ */}
       <View style={ob.footer}>
-        <TouchableOpacity
-          style={[ob.cta, selected === null && ob.ctaDisabled]}
-          onPress={() => selected !== null && router.push('/onboarding/mirror')}
-          activeOpacity={0.85}
-        >
-          <Text style={[ob.ctaText, selected === null && ob.ctaTextDisabled]}>
-            Continue  →
-          </Text>
-        </TouchableOpacity>
+        {selected !== null && (
+          <Animated.View
+            style={{
+              opacity: appear,
+              transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }],
+            }}
+          >
+            <TouchableOpacity
+              style={ob.cta}
+              onPress={() => router.push('/onboarding/mirror')}
+              activeOpacity={0.85}
+            >
+              <Text style={ob.ctaText}>Continue  →</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -252,18 +272,10 @@ const ob = StyleSheet.create({
     shadowRadius: 16,
     elevation: 5,
   },
-  ctaDisabled: {
-    backgroundColor: '#EFE7D8',
-    shadowOpacity: 0,
-    elevation: 0,
-  },
   ctaText: {
     color: WHITE,
     fontSize: 17,
     fontWeight: '800',
     letterSpacing: 0.2,
-  },
-  ctaTextDisabled: {
-    color: '#C0B4A0',
   },
 });
