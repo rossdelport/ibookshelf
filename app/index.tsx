@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 
@@ -11,12 +12,16 @@ export default function WelcomeScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
-        <View style={styles.iconWrapper}>
-          <Image
-            source={require('../assets/icon.png')}
-            style={styles.icon}
-            resizeMode="contain"
-          />
+        <View style={styles.iconShadow}>
+          {/* Rounded clip + slight scale crops the gif's black corners */}
+          <View style={styles.iconClip}>
+            <Image
+              source={require('../assets/images/logo-book.gif')}
+              style={styles.iconGif}
+              contentFit="cover"
+              autoplay
+            />
+          </View>
         </View>
 
         <Text style={styles.title}>iBookshelf</Text>
@@ -57,23 +62,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
   },
-  iconWrapper: {
-    width: 130,
-    height: 130,
-    borderRadius: 30,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
+  iconShadow: {
+    width: 140,
+    height: 140,
+    borderRadius: 34,
+    marginBottom: 32,
     shadowColor: '#5A3A1A',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.12,
     shadowRadius: 16,
-    elevation: 5,
-    marginBottom: 32,
+    elevation: 6,
   },
-  icon: {
-    width: 96,
-    height: 96,
+  iconClip: {
+    width: 140,
+    height: 140,
+    borderRadius: 34,
+    overflow: 'hidden',
+    backgroundColor: '#F6EFE2',
+  },
+  iconGif: {
+    width: '100%',
+    height: '100%',
+    transform: [{ scale: 1.05 }],
   },
   title: {
     fontSize: 48,
