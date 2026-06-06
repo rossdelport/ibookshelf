@@ -1,13 +1,16 @@
 {
   "expo": {
-    "name": "FableBookshelf",
-    "slug": "FableBookshelf",
+    "name": "Fable",
+    "slug": "fable-ibookshelf",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "scheme": "fable",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "minimumOsVersion": "17.0",
+      "bundleIdentifier": "com.fable.ibookshelf"
     },
     "android": {
       "adaptiveIcon": {
@@ -16,10 +19,19 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.fable.ibookshelf"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-splash-screen"
+    ],
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
