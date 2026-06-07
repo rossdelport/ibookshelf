@@ -22,33 +22,18 @@ function Chevron() {
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [codeSent, setCodeSent] = useState(false);
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const emailValid = /\S+@\S+\.\S+/.test(email);
-  const codeValid = code.trim().length >= 6;
+  const valid = /\S+@\S+\.\S+/.test(email) && password.length >= 6;
 
-  const sendCode = async () => {
+  const signIn = async () => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signInWithOtp({
+    const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
-      options: { shouldCreateUser: true },
-    });
-    setLoading(false);
-    if (error) setError(error.message);
-    else setCodeSent(true);
-  };
-
-  const verify = async () => {
-    setLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
-      type: 'email',
+      password,
     });
     setLoading(false);
     if (error) {
@@ -70,62 +55,45 @@ export default function LoginScreen() {
 
         <View style={lg.body}>
           <Text style={lg.title}>Welcome back.</Text>
-          <Text style={lg.sub}>
-            {codeSent
-              ? `Enter the 6-digit code we sent to ${email.trim()}.`
-              : "We'll email you a one-time code to sign in — no password needed."}
-          </Text>
+          <Text style={lg.sub}>Sign in to sync your library across your devices.</Text>
 
-          {!codeSent ? (
-            <View style={lg.field}>
-              <TextInput
-                style={lg.input}
-                value={email}
-                onChangeText={setEmail}
-                placeholder="you@email.com"
-                placeholderTextColor={MUTE}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
-              />
-            </View>
-          ) : (
-            <View style={lg.field}>
-              <TextInput
-                style={[lg.input, lg.codeInput]}
-                value={code}
-                onChangeText={setCode}
-                placeholder="123456"
-                placeholderTextColor={MUTE}
-                keyboardType="number-pad"
-                maxLength={6}
-                autoFocus
-              />
-            </View>
-          )}
+          <View style={lg.field}>
+            <TextInput
+              style={lg.input}
+              value={email}
+              onChangeText={setEmail}
+              placeholder="you@email.com"
+              placeholderTextColor={MUTE}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+          </View>
+          <View style={lg.field}>
+            <TextInput
+              style={lg.input}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Password"
+              placeholderTextColor={MUTE}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+          </View>
 
           {!!error && <Text style={lg.error}>{error}</Text>}
-
-          {codeSent && (
-            <TouchableOpacity onPress={sendCode} activeOpacity={0.7} disabled={loading}>
-              <Text style={lg.resend}>Didn't get it? Resend code</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         <View style={lg.footer}>
           <TouchableOpacity
-            style={[lg.cta, (loading || (codeSent ? !codeValid : !emailValid)) && lg.ctaDisabled]}
-            onPress={codeSent ? verify : sendCode}
-            disabled={loading || (codeSent ? !codeValid : !emailValid)}
+            style={[lg.cta, (loading || !valid) && lg.ctaDisabled]}
+            onPress={signIn}
+            disabled={loading || !valid}
             activeOpacity={0.85}
           >
-            {loading ? (
-              <ActivityIndicator color={WHITE} />
-            ) : (
-              <Text style={lg.ctaText}>{codeSent ? 'Verify & sign in  →' : 'Send code  →'}</Text>
-            )}
+            {loading ? <ActivityIndicator color={WHITE} /> : <Text style={lg.ctaText}>Sign in  →</Text>}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -149,18 +117,16 @@ const lg = StyleSheet.create({
 
   body: { flex: 1, paddingHorizontal: 22, paddingTop: 28, gap: 14 },
   title: { fontSize: 28, fontWeight: '800', color: INK, letterSpacing: -0.5 },
-  sub: { fontSize: 14.5, fontWeight: '500', color: MUTE, lineHeight: 21 },
+  sub: { fontSize: 14.5, fontWeight: '500', color: MUTE, lineHeight: 21, marginBottom: 6 },
 
   field: {
     backgroundColor: WHITE, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
-    paddingHorizontal: 16, paddingVertical: 16, marginTop: 6,
+    paddingHorizontal: 16, paddingVertical: 16,
     shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
   },
   input: { fontSize: 15, fontWeight: '500', color: INK, padding: 0 },
-  codeInput: { fontSize: 22, fontWeight: '800', letterSpacing: 8, textAlign: 'center' },
 
   error: { fontSize: 13, fontWeight: '600', color: '#E0506B', marginTop: 2 },
-  resend: { fontSize: 13.5, fontWeight: '700', color: '#8B5E3C', marginTop: 4 },
 
   footer: { paddingHorizontal: 20, paddingBottom: 16 },
   cta: {
