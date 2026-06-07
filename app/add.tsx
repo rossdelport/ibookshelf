@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator, Alert, Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
 import { BookCover } from '../components/BookCover';
 import { CameraIcon, SearchIcon } from '../components/icons';
 import { useBookshelfStore } from '../store/bookshelfStore';
@@ -41,6 +42,30 @@ export default function AddBookScreen() {
   const [mTitle, setMTitle] = useState('');
   const [mAuthor, setMAuthor] = useState('');
   const [mPages, setMPages] = useState('');
+  const [mCover, setMCover] = useState<string | null>(null);
+
+  const COVER_OPTS: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], allowsEditing: true, aspect: [2, 3], quality: 0.7 };
+
+  const pickCover = () =>
+    Alert.alert('Cover photo', 'Add a photo of the book cover', [
+      {
+        text: 'Take photo',
+        onPress: async () => {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) return;
+          const res = await ImagePicker.launchCameraAsync(COVER_OPTS);
+          if (!res.canceled) setMCover(res.assets[0].uri);
+        },
+      },
+      {
+        text: 'Choose from library',
+        onPress: async () => {
+          const res = await ImagePicker.launchImageLibraryAsync(COVER_OPTS);
+          if (!res.canceled) setMCover(res.assets[0].uri);
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
 
   // Debounced online title search
   useEffect(() => {
@@ -76,6 +101,7 @@ export default function AddBookScreen() {
       id: `manual_${Date.now()}`,
       title,
       author: mAuthor.trim() || 'Unknown author',
+      coverUrl: mCover ?? undefined,
       pageCount: mPages ? Number(mPages.replace(/[^0-9]/g, '')) : undefined,
     };
     addToShelf(book, 'want_to_read');
@@ -157,6 +183,17 @@ export default function AddBookScreen() {
 
           {manualOpen && (
             <View style={a.manualBox}>
+              <TouchableOpacity style={a.coverRow} onPress={pickCover} activeOpacity={0.8}>
+                {mCover ? (
+                  <Image source={{ uri: mCover }} style={a.coverThumb} resizeMode="cover" />
+                ) : (
+                  <View style={[a.coverThumb, a.coverPlaceholder]}>
+                    <Text style={a.coverPlus}>＋</Text>
+                  </View>
+                )}
+                <Text style={a.coverHint}>{mCover ? 'Change cover photo' : 'Add a cover photo (optional)'}</Text>
+              </TouchableOpacity>
+
               <TextInput style={a.manualInput} value={mTitle} onChangeText={setMTitle} placeholder="Title (required)" placeholderTextColor={MUTE} />
               <TextInput style={a.manualInput} value={mAuthor} onChangeText={setMAuthor} placeholder="Author" placeholderTextColor={MUTE} />
               <TextInput style={a.manualInput} value={mPages} onChangeText={setMPages} placeholder="Pages (optional)" placeholderTextColor={MUTE} keyboardType="number-pad" />
@@ -225,6 +262,14 @@ const a = StyleSheet.create({
   manualToggle: { marginTop: 24, paddingVertical: 6 },
   manualToggleText: { fontSize: 14, fontWeight: '800', color: BROWN },
   manualBox: { marginTop: 10, gap: 10 },
+  coverRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 2 },
+  coverThumb: { width: 54, height: 81, borderRadius: 6, backgroundColor: '#F6EFE2' },
+  coverPlaceholder: {
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(139,94,60,0.3)', borderStyle: 'dashed',
+  },
+  coverPlus: { fontSize: 24, color: BROWN, fontWeight: '700' },
+  coverHint: { fontSize: 13.5, fontWeight: '700', color: BROWN },
   manualInput: {
     backgroundColor: WHITE, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 14,
     fontSize: 15, fontWeight: '500', color: INK, borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',

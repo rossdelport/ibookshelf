@@ -36,6 +36,12 @@
           "cameraPermission": "iBookshelf uses your camera to scan book barcodes and add them to your library."
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "iBookshelf uses your photo library to set a book's cover image."
+        }
+      ],
       "expo-web-browser"
     ],
     "experiments": {
