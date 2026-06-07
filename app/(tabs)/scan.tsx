@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { CheckIcon, CloseIcon, FlashIcon, HeartIcon, ShelfIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
@@ -38,6 +38,7 @@ export default function ScanScreen() {
   const [mode, setMode] = useState<Mode>('aim');
   const [book, setBook] = useState<Book | null>(null);
   const [flash, setFlash] = useState(false);
+  const [focused, setFocused] = useState(true);
 
   const lock = useRef(false);
   const sweep = useRef(new Animated.Value(0)).current;
@@ -53,6 +54,16 @@ export default function ScanScreen() {
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) requestPermission();
   }, [permission, requestPermission]);
+
+  // Power the camera down whenever the Scan tab loses focus (after ✕ or a tab
+  // switch) and back on when it returns — so the camera never runs in the
+  // background.
+  useFocusEffect(
+    useCallback(() => {
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
+  );
 
   // Scan line + spinner loops while actively aiming / identifying
   useEffect(() => {
@@ -98,6 +109,11 @@ export default function ScanScreen() {
 
   const reset = () => { lock.current = false; setBook(null); setMode('aim'); };
 
+  // ✕ — cancel the scan and leave the camera. reset() clears any open result
+  // sheet so the scanner is fresh next time; navigating away blurs the tab,
+  // which powers the camera down via `active`.
+  const exit = () => { reset(); router.navigate('/(tabs)'); };
+
   const addToLibrary = (status: 'want_to_read' | 'wishlist') => {
     if (book) addToShelf(book, status);
     setMode(status === 'wishlist' ? 'wishlist' : 'shelf');
@@ -124,8 +140,9 @@ export default function ScanScreen() {
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={flash}
-          // Camera runs only while aiming; powers down after a scan, back on for "Scan again".
-          active={scanning}
+          // Camera runs only while aiming AND the tab is focused; powers down
+          // after a scan, on leaving via ✕, or switching tabs.
+          active={scanning && focused}
           barcodeScannerSettings={{ barcodeTypes: ['ean13'] }}
           onBarcodeScanned={scanning ? handleBarcode : undefined}
         />
@@ -162,7 +179,7 @@ export default function ScanScreen() {
 
       {/* ── Top bar ───────────────────────────────────── */}
       <View style={[sc.top, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={sc.topBtn} onPress={reset} activeOpacity={0.7}><CloseIcon color={WHITE} /></TouchableOpacity>
+        <TouchableOpacity style={sc.topBtn} onPress={exit} activeOpacity={0.7}><CloseIcon color={WHITE} /></TouchableOpacity>
         <Text style={sc.topTitle}>Scan a Book</Text>
         <TouchableOpacity style={[sc.topBtn, flash && sc.topBtnOn]} onPress={() => setFlash((f) => !f)} activeOpacity={0.7}>
           <FlashIcon color={flash ? INK : WHITE} />
