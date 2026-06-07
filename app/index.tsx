@@ -1,7 +1,8 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { Redirect, router } from 'expo-router';
+import { useAuthStore } from '../store/authStore';
 
 const AMBER = '#C8852A';
 const BG = '#F2E8D8';
@@ -9,6 +10,13 @@ const DARK = '#2C1A0E';
 const MUTED = '#8B7A68';
 
 export default function WelcomeScreen() {
+  const session = useAuthStore((s) => s.session);
+  const initializing = useAuthStore((s) => s.initializing);
+
+  // Wait for the session check, then skip straight to the app if signed in.
+  if (initializing) return <View style={styles.safe} />;
+  if (session) return <Redirect href="/(tabs)" />;
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
@@ -42,7 +50,7 @@ export default function WelcomeScreen() {
 
         <Text style={styles.loginText}>
           Already have an account?{' '}
-          <Text style={styles.loginLink} onPress={() => router.replace('/(tabs)')}>
+          <Text style={styles.loginLink} onPress={() => router.push('/login')}>
             Log in
           </Text>
         </Text>

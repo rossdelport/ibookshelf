@@ -1,10 +1,12 @@
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { AvatarFace } from '../../components/AvatarFace';
 import { GearIcon, LockIcon, ShareNodesIcon, SparkIcon } from '../../components/icons';
 import { ANIMALS } from '../../constants/animals';
 import { useUserStore } from '../../store/userStore';
+import { supabase } from '../../lib/supabase';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -58,6 +60,12 @@ function SectionCard({ title, action, onAction, children, style }: { title: stri
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { profile } = useUserStore();
+
+  // Sign-out → root layout clears the local stores; back to the welcome screen.
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    router.replace('/');
+  };
   const avatar = profile.avatar ?? DEFAULT_AVATAR;
   const soul = ANIMALS.find((a) => a.name === profile.soulAnimal) ?? ANIMALS.find((a) => a.name === 'Fox')!;
   const traits = TRAITS[soul.name] ?? TRAITS.Fox;
@@ -207,6 +215,11 @@ export default function ProfileScreen() {
             ))}
           </View>
         </SectionCard>
+
+        {/* ── Sign out ─────────────────────────────────── */}
+        <TouchableOpacity style={pf.signOut} onPress={signOut} activeOpacity={0.7}>
+          <Text style={pf.signOutText}>Sign out</Text>
+        </TouchableOpacity>
       </ScrollView>
     </LinearGradient>
   );
@@ -322,4 +335,8 @@ const pf = StyleSheet.create({
   genre: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, backgroundColor: '#F6EFE2', borderWidth: 1, borderColor: 'rgba(139,94,60,0.12)' },
   genreEmoji: { fontSize: 13 },
   genreText: { color: '#6b6052', fontSize: 13, fontWeight: '700' },
+
+  // ── Sign out
+  signOut: { alignSelf: 'center', marginTop: 22, paddingVertical: 12, paddingHorizontal: 24 },
+  signOutText: { fontSize: 14, fontWeight: '800', color: '#E0506B' },
 });

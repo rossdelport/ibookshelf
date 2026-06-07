@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Book, ShelfEntry, ShelfBook, ReadingStatus } from '../types/book';
+import { pushBook, removeBook } from '../lib/sync';
 
 interface BookshelfState {
   books: Record<string, Book>;
@@ -12,6 +13,8 @@ interface BookshelfState {
   getShelfBooks: (status?: ReadingStatus) => ShelfBook[];
   getShelfEntry: (bookId: string) => ShelfEntry | undefined;
   getShelfBook: (bookId: string) => ShelfBook | undefined;
+  hydrate: (books: Record<string, Book>, shelf: Record<string, ShelfEntry>) => void;
+  clear: () => void;
 }
 
 export const useBookshelfStore = create<BookshelfState>()(
@@ -21,19 +24,18 @@ export const useBookshelfStore = create<BookshelfState>()(
       shelf: {},
 
       addToShelf: (book, status) => {
-        set((state) => {
-          const prev = state.shelf[book.id];
-          const now = new Date().toISOString();
-          // Re-adding an existing book (e.g. wishlist → shelf) keeps its notes/
-          // progress and only updates the status.
-          const entry: ShelfEntry = prev
-            ? { ...prev, status, startedAt: status === 'reading' && !prev.startedAt ? now : prev.startedAt }
-            : { bookId: book.id, status, addedAt: now, startedAt: status === 'reading' ? now : undefined };
-          return {
-            books: { ...state.books, [book.id]: book },
-            shelf: { ...state.shelf, [book.id]: entry },
-          };
-        });
+        const prev = get().shelf[book.id];
+        const now = new Date().toISOString();
+        // Re-adding an existing book (e.g. wishlist → shelf) keeps its notes/
+        // progress and only updates the status.
+        const entry: ShelfEntry = prev
+          ? { ...prev, status, startedAt: status === 'reading' && !prev.startedAt ? now : prev.startedAt }
+          : { bookId: book.id, status, addedAt: now, startedAt: status === 'reading' ? now : undefined };
+        set((state) => ({
+          books: { ...state.books, [book.id]: book },
+          shelf: { ...state.shelf, [book.id]: entry },
+        }));
+        pushBook(book, entry); // no-op when signed out
       },
 
       removeFromShelf: (bookId) => {
@@ -42,16 +44,16 @@ export const useBookshelfStore = create<BookshelfState>()(
           const { [bookId]: _entry, ...shelf } = state.shelf;
           return { books, shelf };
         });
+        removeBook(bookId);
       },
 
       updateShelfEntry: (bookId, updates) => {
-        set((state) => {
-          const existing = state.shelf[bookId];
-          if (!existing) return state;
-          return {
-            shelf: { ...state.shelf, [bookId]: { ...existing, ...updates } },
-          };
-        });
+        const existing = get().shelf[bookId];
+        if (!existing) return;
+        const merged = { ...existing, ...updates };
+        set((state) => ({ shelf: { ...state.shelf, [bookId]: merged } }));
+        const book = get().books[bookId];
+        if (book) pushBook(book, merged);
       },
 
       getShelfBooks: (status) => {
@@ -72,6 +74,12 @@ export const useBookshelfStore = create<BookshelfState>()(
         if (!entry || !book) return undefined;
         return { ...book, shelf: entry };
       },
+
+      // Replace local state from a remote pull (no push-back).
+      hydrate: (books, shelf) => set({ books, shelf }),
+
+      // Wipe local state on sign-out.
+      clear: () => set({ books: {}, shelf: {} }),
     }),
     {
       name: 'ibookshelf-library',

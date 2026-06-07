@@ -1,0 +1,172 @@
+import { useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { supabase } from '../lib/supabase';
+
+// ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
+const INK   = '#332C24';
+const MUTE  = '#A89A88';
+const AMBER = '#E8A838';
+const PAPER = '#FAF8F3';
+const WHITE = '#FFFFFF';
+
+function Chevron() {
+  return (
+    <View style={lg.chevronWrap}>
+      <View style={lg.chevronArm1} />
+      <View style={lg.chevronArm2} />
+    </View>
+  );
+}
+
+export default function LoginScreen() {
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const emailValid = /\S+@\S+\.\S+/.test(email);
+  const codeValid = code.trim().length >= 6;
+
+  const sendCode = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: true },
+    });
+    setLoading(false);
+    if (error) setError(error.message);
+    else setCodeSent(true);
+  };
+
+  const verify = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.trim(),
+      type: 'email',
+    });
+    setLoading(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    // Session is set → the root layout pulls this user's data; head to the app.
+    router.replace('/(tabs)');
+  };
+
+  return (
+    <SafeAreaView style={lg.safe}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={lg.topbar}>
+          <TouchableOpacity style={lg.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+            <Chevron />
+          </TouchableOpacity>
+        </View>
+
+        <View style={lg.body}>
+          <Text style={lg.title}>Welcome back.</Text>
+          <Text style={lg.sub}>
+            {codeSent
+              ? `Enter the 6-digit code we sent to ${email.trim()}.`
+              : "We'll email you a one-time code to sign in — no password needed."}
+          </Text>
+
+          {!codeSent ? (
+            <View style={lg.field}>
+              <TextInput
+                style={lg.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="you@email.com"
+                placeholderTextColor={MUTE}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoFocus
+              />
+            </View>
+          ) : (
+            <View style={lg.field}>
+              <TextInput
+                style={[lg.input, lg.codeInput]}
+                value={code}
+                onChangeText={setCode}
+                placeholder="123456"
+                placeholderTextColor={MUTE}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+              />
+            </View>
+          )}
+
+          {!!error && <Text style={lg.error}>{error}</Text>}
+
+          {codeSent && (
+            <TouchableOpacity onPress={sendCode} activeOpacity={0.7} disabled={loading}>
+              <Text style={lg.resend}>Didn't get it? Resend code</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={lg.footer}>
+          <TouchableOpacity
+            style={[lg.cta, (loading || (codeSent ? !codeValid : !emailValid)) && lg.ctaDisabled]}
+            onPress={codeSent ? verify : sendCode}
+            disabled={loading || (codeSent ? !codeValid : !emailValid)}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color={WHITE} />
+            ) : (
+              <Text style={lg.ctaText}>{codeSent ? 'Verify & sign in  →' : 'Send code  →'}</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const lg = StyleSheet.create({
+  safe: { flex: 1, backgroundColor: PAPER },
+
+  topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12 },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 999, backgroundColor: WHITE,
+    alignItems: 'center', justifyContent: 'center',
+    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
+    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
+  },
+  chevronWrap: { width: 12, height: 12, alignItems: 'center', justifyContent: 'center', marginRight: -2 },
+  chevronArm1: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: INK, top: 2.5, left: 2, transform: [{ rotate: '-45deg' }] },
+  chevronArm2: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: INK, bottom: 2.5, left: 2, transform: [{ rotate: '45deg' }] },
+
+  body: { flex: 1, paddingHorizontal: 22, paddingTop: 28, gap: 14 },
+  title: { fontSize: 28, fontWeight: '800', color: INK, letterSpacing: -0.5 },
+  sub: { fontSize: 14.5, fontWeight: '500', color: MUTE, lineHeight: 21 },
+
+  field: {
+    backgroundColor: WHITE, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
+    paddingHorizontal: 16, paddingVertical: 16, marginTop: 6,
+    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
+  },
+  input: { fontSize: 15, fontWeight: '500', color: INK, padding: 0 },
+  codeInput: { fontSize: 22, fontWeight: '800', letterSpacing: 8, textAlign: 'center' },
+
+  error: { fontSize: 13, fontWeight: '600', color: '#E0506B', marginTop: 2 },
+  resend: { fontSize: 13.5, fontWeight: '700', color: '#8B5E3C', marginTop: 4 },
+
+  footer: { paddingHorizontal: 20, paddingBottom: 16 },
+  cta: {
+    backgroundColor: AMBER, borderRadius: 18, paddingVertical: 19, alignItems: 'center',
+    shadowColor: '#E29A2A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 5,
+  },
+  ctaDisabled: { backgroundColor: '#EFE7D8', shadowOpacity: 0, elevation: 0 },
+  ctaText: { color: WHITE, fontSize: 17, fontWeight: '800', letterSpacing: 0.2 },
+});

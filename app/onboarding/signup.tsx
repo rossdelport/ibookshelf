@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { supabase } from '../../lib/supabase';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -67,8 +68,49 @@ function MailIcon() {
 
 export default function SignUpScreen() {
   const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [codeSent, setCodeSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const canContinue = email.includes('@');
+  const emailValid = email.includes('@') && email.includes('.');
+  const codeValid = code.trim().length >= 6;
+  const disabled = loading || (codeSent ? !codeValid : !emailValid);
+
+  const sendCode = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim(),
+      options: { shouldCreateUser: true },
+    });
+    setLoading(false);
+    if (error) setError(error.message);
+    else setCodeSent(true);
+  };
+
+  const verify = async () => {
+    setLoading(true);
+    setError(null);
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: code.trim(),
+      type: 'email',
+    });
+    setLoading(false);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    // Signed in → the root layout flushes the onboarding profile to the cloud.
+    router.push('/onboarding/scan');
+  };
+
+  const social = (provider: string) =>
+    Alert.alert(
+      `${provider} sign-in`,
+      `${provider} login is coming soon — it needs the ${provider} provider configured in Supabase. For now, continue with email.`,
+    );
 
   return (
     <SafeAreaView style={su.safe}>
@@ -93,52 +135,85 @@ export default function SignUpScreen() {
           {/* Title — §3 Screen H1: 26px / 800 / Nunito / left-aligned */}
           <Text style={su.title}>Save your library.{'\n'}Take it anywhere.</Text>
           <Text style={su.sub}>
-            Your whole collection, synced to your phone — so you always know what you own, even in the bookstore.
+            {codeSent
+              ? `Enter the 6-digit code we emailed to ${email.trim()}.`
+              : 'Your whole collection, synced to your phone — so you always know what you own, even in the bookstore.'}
           </Text>
 
-          {/* ── Auth buttons ─────────────────────────── */}
-          <View style={su.authStack}>
-            {/* Apple — §5 dark button: #2A2420 bg, white text */}
-            <TouchableOpacity style={su.appleBtn} activeOpacity={0.85} onPress={() => router.push('/onboarding/scan')}>
-              <AppleIcon />
-              <Text style={su.appleBtnText}>Continue with Apple</Text>
+          {!codeSent ? (
+            <>
+              {/* ── Auth buttons ─────────────────────────── */}
+              <View style={su.authStack}>
+                {/* Apple — §5 dark button: #2A2420 bg, white text */}
+                <TouchableOpacity style={su.appleBtn} activeOpacity={0.85} onPress={() => social('Apple')}>
+                  <AppleIcon />
+                  <Text style={su.appleBtnText}>Continue with Apple</Text>
+                </TouchableOpacity>
+
+                {/* Google — §5 ghost variant: white bg, hairline border */}
+                <TouchableOpacity style={su.googleBtn} activeOpacity={0.85} onPress={() => social('Google')}>
+                  <GoogleIcon />
+                  <Text style={su.googleBtnText}>Continue with Google</Text>
+                </TouchableOpacity>
+              </View>
+
+              <OrDivider />
+
+              {/* ── Email field — §4 field: white surface, radius 16, hairline border */}
+              <View style={su.field}>
+                <MailIcon />
+                <TextInput
+                  style={su.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@email.com"
+                  placeholderTextColor={MUTE}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </>
+          ) : (
+            /* ── Code entry ──────────────────────────────── */
+            <View style={su.field}>
+              <TextInput
+                style={[su.input, su.codeInput]}
+                value={code}
+                onChangeText={setCode}
+                placeholder="123456"
+                placeholderTextColor={MUTE}
+                keyboardType="number-pad"
+                maxLength={6}
+                autoFocus
+              />
+            </View>
+          )}
+
+          {!!error && <Text style={su.error}>{error}</Text>}
+
+          {codeSent && (
+            <TouchableOpacity onPress={sendCode} activeOpacity={0.7} disabled={loading}>
+              <Text style={su.resend}>Didn't get it? Resend code</Text>
             </TouchableOpacity>
-
-            {/* Google — §5 ghost variant: white bg, hairline border */}
-            <TouchableOpacity style={su.googleBtn} activeOpacity={0.85} onPress={() => router.push('/onboarding/scan')}>
-              <GoogleIcon />
-              <Text style={su.googleBtnText}>Continue with Google</Text>
-            </TouchableOpacity>
-          </View>
-
-          <OrDivider />
-
-          {/* ── Email field — §4 field: white surface, radius 16, hairline border */}
-          <View style={su.field}>
-            <MailIcon />
-            <TextInput
-              style={su.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="you@email.com"
-              placeholderTextColor={MUTE}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+          )}
         </View>
 
         {/* ── Footer ───────────────────────────────────── */}
         <View style={su.footer}>
           <TouchableOpacity
-            style={[su.cta, !canContinue && su.ctaDisabled]}
-            onPress={() => canContinue && router.push('/onboarding/scan')}
+            style={[su.cta, disabled && su.ctaDisabled]}
+            onPress={codeSent ? verify : sendCode}
+            disabled={disabled}
             activeOpacity={0.85}
           >
-            <Text style={[su.ctaText, !canContinue && su.ctaTextDisabled]}>
-              Continue  →
-            </Text>
+            {loading ? (
+              <ActivityIndicator color={WHITE} />
+            ) : (
+              <Text style={[su.ctaText, disabled && su.ctaTextDisabled]}>
+                {codeSent ? 'Verify & continue  →' : 'Email me a code  →'}
+              </Text>
+            )}
           </TouchableOpacity>
 
           {/* Legal */}
@@ -239,6 +314,9 @@ const su = StyleSheet.create({
     marginTop: -1,
   },
   input: { flex: 1, fontSize: 15, fontWeight: '500', color: INK, padding: 0 },
+  codeInput: { fontSize: 22, fontWeight: '800', letterSpacing: 8, textAlign: 'center' },
+  error: { fontSize: 13, fontWeight: '600', color: '#E0506B', marginTop: 4 },
+  resend: { fontSize: 13.5, fontWeight: '700', color: BROWN, marginTop: 8 },
 
   // ── Footer
   footer: { paddingHorizontal: 20, paddingBottom: 16, gap: 12 },

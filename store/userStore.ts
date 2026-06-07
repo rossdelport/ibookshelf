@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { pushProfile } from '../lib/sync';
+
+const EMPTY_PROFILE: UserProfile = {
+  librarySize: null,
+  favouriteGenres: [],
+  soulAnimal: null,
+  avatar: null,
+};
 
 // Holds onboarding + profile data locally until Supabase sync is wired up.
 // When Supabase is added: subscribe to this store and upsert to the `profiles` table.
@@ -27,23 +35,24 @@ interface UserState {
   toggleGenre: (genre: string) => void;
   setSoulAnimal: (animal: string) => void;
   setAvatar: (avatar: AvatarConfig) => void;
+  hydrateProfile: (profile: UserProfile) => void;
+  reset: () => void;
 }
 
 export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
-      profile: {
-        librarySize: null,
-        favouriteGenres: [],
-        soulAnimal: null,
-        avatar: null,
+      profile: { ...EMPTY_PROFILE },
+
+      setLibrarySize: (value) => {
+        set((s) => ({ profile: { ...s.profile, librarySize: value } }));
+        pushProfile(get().profile); // no-op when signed out
       },
 
-      setLibrarySize: (value) =>
-        set((s) => ({ profile: { ...s.profile, librarySize: value } })),
-
-      setFavouriteGenres: (genres) =>
-        set((s) => ({ profile: { ...s.profile, favouriteGenres: genres } })),
+      setFavouriteGenres: (genres) => {
+        set((s) => ({ profile: { ...s.profile, favouriteGenres: genres } }));
+        pushProfile(get().profile);
+      },
 
       toggleGenre: (genre) => {
         const current = get().profile.favouriteGenres;
@@ -51,13 +60,24 @@ export const useUserStore = create<UserState>()(
           ? current.filter((g) => g !== genre)
           : [...current, genre];
         set((s) => ({ profile: { ...s.profile, favouriteGenres: next } }));
+        pushProfile(get().profile);
       },
 
-      setSoulAnimal: (animal) =>
-        set((s) => ({ profile: { ...s.profile, soulAnimal: animal } })),
+      setSoulAnimal: (animal) => {
+        set((s) => ({ profile: { ...s.profile, soulAnimal: animal } }));
+        pushProfile(get().profile);
+      },
 
-      setAvatar: (avatar) =>
-        set((s) => ({ profile: { ...s.profile, avatar } })),
+      setAvatar: (avatar) => {
+        set((s) => ({ profile: { ...s.profile, avatar } }));
+        pushProfile(get().profile);
+      },
+
+      // Replace local profile from a remote pull (no push-back).
+      hydrateProfile: (profile) => set({ profile }),
+
+      // Wipe local profile on sign-out.
+      reset: () => set({ profile: { ...EMPTY_PROFILE } }),
     }),
     {
       name: 'ibookshelf-user',
