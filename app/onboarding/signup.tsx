@@ -140,30 +140,7 @@ export default function SignUpScreen() {
             Your whole collection, synced to your phone — so you always know what you own, even in the bookstore.
           </Text>
 
-          {/* ── Auth buttons ─────────────────────────── */}
-          <View style={su.authStack}>
-            {/* Apple — §5 dark button: #2A2420 bg, white text */}
-            <TouchableOpacity style={su.appleBtn} activeOpacity={0.85} onPress={() => social('Apple')}>
-              <AppleIcon />
-              <Text style={su.appleBtnText}>Continue with Apple</Text>
-            </TouchableOpacity>
-
-            {/* Google — §5 ghost variant: white bg, hairline border */}
-            <TouchableOpacity style={su.googleBtn} activeOpacity={0.85} onPress={onGoogle} disabled={googleLoading}>
-              {googleLoading ? (
-                <ActivityIndicator color={INK} />
-              ) : (
-                <>
-                  <GoogleIcon />
-                  <Text style={su.googleBtnText}>Continue with Google</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          <OrDivider />
-
-          {/* ── Email + password — §4 field ───────────── */}
+          {/* ── Email + password — §4 field (above the fold, clear of keyboard) ── */}
           <View style={su.field}>
             <MailIcon />
             <TextInput
@@ -191,6 +168,29 @@ export default function SignUpScreen() {
           </View>
 
           {!!error && <Text style={su.error}>{error}</Text>}
+
+          <OrDivider />
+
+          {/* ── Auth buttons ─────────────────────────── */}
+          <View style={su.authStack}>
+            {/* Apple — §5 dark button: #2A2420 bg, white text */}
+            <TouchableOpacity style={su.appleBtn} activeOpacity={0.85} onPress={() => social('Apple')}>
+              <AppleIcon />
+              <Text style={su.appleBtnText}>Continue with Apple</Text>
+            </TouchableOpacity>
+
+            {/* Google — §5 ghost variant: white bg, hairline border */}
+            <TouchableOpacity style={su.googleBtn} activeOpacity={0.85} onPress={onGoogle} disabled={googleLoading}>
+              {googleLoading ? (
+                <ActivityIndicator color={INK} />
+              ) : (
+                <>
+                  <GoogleIcon />
+                  <Text style={su.googleBtnText}>Continue with Google</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ── Footer ───────────────────────────────────── */}
