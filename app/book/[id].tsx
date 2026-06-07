@@ -182,7 +182,7 @@ export default function BookDetailScreen() {
           {/* ── Shelves / collections ──────────────────── */}
           <Text style={d.sectionLabel}>SHELVES</Text>
           <View style={d.statusRow}>
-            {shelfDefs.map((sh) => {
+            {(shelfDefs ?? []).map((sh) => {
               const on = (entry.shelves ?? []).includes(sh.name);
               const tint = shelfChipColor(sh.color);
               return (

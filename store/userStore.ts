@@ -130,8 +130,10 @@ export const useUserStore = create<UserState>()(
         pushProfile(get().profile);
       },
 
-      // Replace local profile from a remote pull (no push-back).
-      hydrateProfile: (profile) => set({ profile }),
+      // Replace local profile from a remote pull (no push-back). Normalise so a
+      // missing/undefined `shelves` can never reach the UI (which maps over it).
+      hydrateProfile: (profile) =>
+        set({ profile: { ...EMPTY_PROFILE, ...profile, shelves: profile.shelves ?? [] } }),
 
       // Wipe local profile on sign-out.
       reset: () => set({ profile: { ...EMPTY_PROFILE } }),
@@ -140,6 +142,14 @@ export const useUserStore = create<UserState>()(
       name: 'ibookshelf-user',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({ profile: state.profile }),
+      // Older installs persisted a profile from before `shelves` existed. zustand's
+      // default merge is shallow, so it would leave profile.shelves undefined and
+      // crash any screen that maps over it. Re-base the persisted profile on
+      // EMPTY_PROFILE so every field keeps a safe default (self-heals old data).
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<UserState>;
+        return { ...current, ...p, profile: { ...EMPTY_PROFILE, ...(p.profile ?? {}) } };
+      },
     },
   ),
 );
