@@ -62,7 +62,7 @@ export default function ReviewScreen() {
       {/* ── Head ─────────────────────────────────────── */}
       <View style={rv.head}>
         <Text style={rv.title}>Loving iBookshelf{'\n'}so far?</Text>
-        <Text style={rv.sub}>A 5-star review helps fellow readers find their sanctuary.</Text>
+        <Text style={rv.sub}>A 5-star review helps fellow readers organise the books they love.</Text>
       </View>
 
       {/* ── Body: review card ────────────────────────── */}

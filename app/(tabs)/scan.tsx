@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { router } from 'expo-router';
-import { CheckIcon, CloseIcon, FlashIcon, HeartIcon, KeyboardIcon, ShelfIcon } from '../../components/icons';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import { CheckIcon, CloseIcon, FlashIcon, HeartIcon, ShelfIcon } from '../../components/icons';
+import { useBookshelfStore } from '../../store/bookshelfStore';
+import { lookupBookByIsbn } from '../../lib/bookLookup';
+import type { Book } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -13,35 +16,45 @@ const BROWN = '#8B5E3C';
 const AMBER = '#E8A838';
 const WHITE = '#FFFFFF';
 const GREEN = '#5BA66E';
-
-const COVER = require('../../assets/images/bk_acotar.png');
-const FOUND = {
-  title: 'A Court of Thorns and Roses',
-  author: 'Sarah J. Maas',
-  meta: '2015 · Bloomsbury · 419 pp',
-};
+const RED   = '#E0506B';
 
 const RETICLE_H = 300;
 
-type Mode = 'aim' | 'scanning' | 'result' | 'shelf' | 'wishlist';
+// 'aim' → camera live, scanning for a barcode
+// 'identifying' → barcode caught, looking it up
+// 'result' → new book identified, offer to add
+// 'owned' → already in the library (the duplicate-check payoff)
+// 'shelf' / 'wishlist' → confirmation after adding
+// 'notfound' → barcode read but no match
+type Mode = 'aim' | 'identifying' | 'result' | 'owned' | 'shelf' | 'wishlist' | 'notfound';
 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
+  const { addToShelf, getShelfEntry } = useBookshelfStore();
+  const [permission, requestPermission] = useCameraPermissions();
+
   const [mode, setMode] = useState<Mode>('aim');
+  const [book, setBook] = useState<Book | null>(null);
   const [flash, setFlash] = useState(false);
 
+  const lock = useRef(false);
   const sweep = useRef(new Animated.Value(0)).current;
   const spin  = useRef(new Animated.Value(0)).current;
   const sheetY = useRef(new Animated.Value(34)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const showSheet = mode === 'result' || mode === 'shelf' || mode === 'wishlist';
+  const showSheet = mode === 'result' || mode === 'owned' || mode === 'shelf' || mode === 'wishlist' || mode === 'notfound';
   const added = mode === 'shelf' || mode === 'wishlist';
+  const scanning = mode === 'aim';
 
-  // Scanning loops (scan line + spinner)
+  // Ask for camera access on first mount
   useEffect(() => {
-    if (mode !== 'scanning') return;
+    if (permission && !permission.granted && permission.canAskAgain) requestPermission();
+  }, [permission, requestPermission]);
+
+  // Scan line + spinner loops while actively aiming / identifying
+  useEffect(() => {
+    if (mode !== 'aim' && mode !== 'identifying') return;
     const line = Animated.loop(
       Animated.sequence([
         Animated.timing(sweep, { toValue: 1, duration: 650, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
@@ -69,21 +82,71 @@ export default function ScanScreen() {
     }
   }, [added, checkScale]);
 
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const handleBarcode = useCallback(async ({ data }: BarcodeScanningResult) => {
+    if (lock.current) return;
+    lock.current = true;
+    setMode('identifying');
+    const found = await lookupBookByIsbn(data);
+    if (!found) { setMode('notfound'); return; }
+    setBook(found);
+    // Duplicate check — owned means a shelf entry that isn't merely a wishlist item.
+    const entry = getShelfEntry(found.id);
+    setMode(entry && entry.status !== 'wishlist' ? 'owned' : 'result');
+  }, [getShelfEntry]);
 
-  const capture = () => {
-    setMode('scanning');
-    timer.current = setTimeout(() => setMode('result'), 1500);
+  const reset = () => { lock.current = false; setBook(null); setMode('aim'); };
+
+  const addToLibrary = (status: 'want_to_read' | 'wishlist') => {
+    if (book) addToShelf(book, status);
+    setMode(status === 'wishlist' ? 'wishlist' : 'shelf');
   };
-  const reset = () => setMode('aim');
 
   const lineY = sweep.interpolate({ inputRange: [0, 1], outputRange: [RETICLE_H * 0.04, RETICLE_H * 0.96] });
   const spinDeg = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const scanning = mode === 'scanning';
-  const cornerColor = scanning ? AMBER : WHITE;
+  const cornerColor = mode === 'identifying' ? AMBER : WHITE;
 
   return (
     <View style={sc.root}>
+      {/* ── Camera (live) ─────────────────────────────── */}
+      {permission?.granted ? (
+        <CameraView
+          style={StyleSheet.absoluteFill}
+          facing="back"
+          enableTorch={flash}
+          barcodeScannerSettings={{ barcodeTypes: ['ean13'] }}
+          onBarcodeScanned={scanning ? handleBarcode : undefined}
+        />
+      ) : (
+        <View style={[StyleSheet.absoluteFill, sc.permFill]}>
+          <Text style={sc.permText}>
+            {permission && !permission.canAskAgain
+              ? 'Camera access is off. Enable it in Settings to scan books.'
+              : 'iBookshelf needs your camera to scan book barcodes.'}
+          </Text>
+          {permission && !permission.granted && permission.canAskAgain && (
+            <TouchableOpacity style={sc.permBtn} onPress={requestPermission} activeOpacity={0.85}>
+              <Text style={sc.permBtnText}>Allow camera</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Amber glow + vignette over the live feed */}
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <RadialGradient id="glow" cx="50%" cy="46%" rx="60%" ry="44%">
+            <Stop offset="0" stopColor={AMBER} stopOpacity="0.10" />
+            <Stop offset="1" stopColor={AMBER} stopOpacity="0" />
+          </RadialGradient>
+          <RadialGradient id="vig" cx="50%" cy="50%" rx="75%" ry="75%">
+            <Stop offset="0.55" stopColor="#000" stopOpacity="0" />
+            <Stop offset="1" stopColor="#000" stopOpacity="0.6" />
+          </RadialGradient>
+        </Defs>
+        <Rect width="100%" height="100%" fill="url(#glow)" />
+        <Rect width="100%" height="100%" fill="url(#vig)" />
+      </Svg>
+
       {/* ── Top bar ───────────────────────────────────── */}
       <View style={[sc.top, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity style={sc.topBtn} onPress={reset} activeOpacity={0.7}><CloseIcon color={WHITE} /></TouchableOpacity>
@@ -93,87 +156,45 @@ export default function ScanScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* ── Viewfinder ────────────────────────────────── */}
-      <View style={sc.view}>
-        {/* Scene */}
-        <LinearGradient colors={['#2A2320', '#14100C', '#0B0805']} locations={[0, 0.7, 1]} style={StyleSheet.absoluteFill} />
-        <View style={sc.scene}>
-          <Image source={COVER} style={sc.book} resizeMode="cover" />
-        </View>
-        {/* Amber glow + vignette */}
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <RadialGradient id="glow" cx="50%" cy="46%" rx="60%" ry="44%">
-              <Stop offset="0" stopColor={AMBER} stopOpacity="0.12" />
-              <Stop offset="1" stopColor={AMBER} stopOpacity="0" />
-            </RadialGradient>
-            <RadialGradient id="vig" cx="50%" cy="50%" rx="75%" ry="75%">
-              <Stop offset="0.55" stopColor="#000" stopOpacity="0" />
-              <Stop offset="1" stopColor="#000" stopOpacity="0.6" />
-            </RadialGradient>
-          </Defs>
-          <Rect width="100%" height="100%" fill="url(#glow)" />
-          <Rect width="100%" height="100%" fill="url(#vig)" />
-        </Svg>
-
-        {/* Reticle */}
-        <View style={sc.reticle}>
-          <View style={[sc.corner, sc.cornerTL, { borderColor: cornerColor }]} />
-          <View style={[sc.corner, sc.cornerTR, { borderColor: cornerColor }]} />
-          <View style={[sc.corner, sc.cornerBL, { borderColor: cornerColor }]} />
-          <View style={[sc.corner, sc.cornerBR, { borderColor: cornerColor }]} />
-          {scanning && <Animated.View style={[sc.scanLine, { transform: [{ translateY: lineY }] }]} />}
-        </View>
-
-        {/* Hint */}
-        {mode === 'aim' && (
-          <View style={sc.hint}><Text style={sc.hintText}>Center the cover inside the frame</Text></View>
-        )}
-        {scanning && (
-          <View style={sc.hint}>
-            <Animated.View style={[sc.spinner, { transform: [{ rotate: spinDeg }] }]} />
-            <Text style={[sc.hintText, { color: '#FBE6BE' }]}>Identifying…</Text>
-          </View>
-        )}
-      </View>
-
-      {/* ── Capture controls ──────────────────────────── */}
+      {/* ── Reticle + hint ────────────────────────────── */}
       {!showSheet && (
-        <View style={[sc.controls, { paddingBottom: 18 }]}>
-          <TouchableOpacity style={sc.mini} activeOpacity={0.7}>
-            <View style={sc.gallery} />
-            <Text style={sc.miniLabel}>Library</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={sc.shutter} onPress={capture} disabled={scanning} activeOpacity={0.8}>
-            <View style={sc.shutterIn} />
-          </TouchableOpacity>
-          <TouchableOpacity style={sc.mini} activeOpacity={0.7}>
-            <KeyboardIcon color={WHITE} />
-            <Text style={sc.miniLabel}>Enter ISBN</Text>
-          </TouchableOpacity>
+        <View style={sc.center} pointerEvents="none">
+          <View style={sc.reticle}>
+            <View style={[sc.corner, sc.cornerTL, { borderColor: cornerColor }]} />
+            <View style={[sc.corner, sc.cornerTR, { borderColor: cornerColor }]} />
+            <View style={[sc.corner, sc.cornerBL, { borderColor: cornerColor }]} />
+            <View style={[sc.corner, sc.cornerBR, { borderColor: cornerColor }]} />
+            {(scanning || mode === 'identifying') && permission?.granted && (
+              <Animated.View style={[sc.scanLine, { transform: [{ translateY: lineY }] }]} />
+            )}
+          </View>
+
+          {scanning && permission?.granted && (
+            <View style={sc.hint}><Text style={sc.hintText}>Point at the book's barcode</Text></View>
+          )}
+          {mode === 'identifying' && (
+            <View style={sc.hint}>
+              <Animated.View style={[sc.spinner, { transform: [{ rotate: spinDeg }] }]} />
+              <Text style={[sc.hintText, { color: '#FBE6BE' }]}>Identifying…</Text>
+            </View>
+          )}
         </View>
       )}
 
       {/* ── Result / confirmation sheet ───────────────── */}
       {showSheet && (
-        <Animated.View style={[sc.sheet, { paddingBottom: 24, transform: [{ translateY: sheetY }] }]}>
-          {!added ? (
+        <Animated.View style={[sc.sheet, { paddingBottom: insets.bottom + 16, transform: [{ translateY: sheetY }] }]}>
+          {/* New book found */}
+          {mode === 'result' && book && (
             <>
-              <View style={sc.tag}><View style={sc.tagDot} /><Text style={sc.tagText}>Match found · 98%</Text></View>
-              <View style={sc.found}>
-                <Image source={COVER} style={sc.foundImg} resizeMode="cover" />
-                <View style={sc.foundTxt}>
-                  <Text style={sc.foundTitle}>{FOUND.title}</Text>
-                  <Text style={sc.foundAuthor}>{FOUND.author}</Text>
-                  <Text style={sc.foundMeta}>{FOUND.meta}</Text>
-                </View>
-              </View>
+              <View style={sc.tag}><View style={sc.tagDot} /><Text style={sc.tagText}>Match found</Text></View>
+              <BookRow book={book} large />
               <View style={sc.actions}>
-                <TouchableOpacity style={[sc.act, sc.actShelf]} onPress={() => setMode('shelf')} activeOpacity={0.85}>
+                <TouchableOpacity style={[sc.act, sc.actShelf]} onPress={() => addToLibrary('want_to_read')} activeOpacity={0.85}>
                   <ShelfIcon color={WHITE} size={20} sw={1.9} />
                   <Text style={sc.actShelfText}>Add to Shelf</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[sc.act, sc.actWish]} onPress={() => setMode('wishlist')} activeOpacity={0.85}>
+                <TouchableOpacity style={[sc.act, sc.actWish]} onPress={() => addToLibrary('wishlist')} activeOpacity={0.85}>
                   <HeartIcon color={BROWN} size={20} />
                   <Text style={sc.actWishText}>Add to Wishlist</Text>
                 </TouchableOpacity>
@@ -182,17 +203,48 @@ export default function ScanScreen() {
                 <Text style={sc.again}>Not the right book? Scan again</Text>
               </TouchableOpacity>
             </>
-          ) : (
+          )}
+
+          {/* Already owned — the duplicate-check payoff */}
+          {mode === 'owned' && book && (
+            <>
+              <View style={[sc.tag, sc.tagOwned]}><Text style={[sc.tagText, sc.tagTextOwned]}>Already in your library</Text></View>
+              <BookRow book={book} large />
+              <Text style={sc.ownedNote}>You already own this — no need to buy it again. 🎉</Text>
+              <View style={sc.actions}>
+                <TouchableOpacity style={[sc.act, sc.actWish]} onPress={reset} activeOpacity={0.85}>
+                  <Text style={sc.actWishText}>Scan again</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[sc.act, sc.actSolid]} onPress={() => router.navigate('/(tabs)/shelf')} activeOpacity={0.85}>
+                  <Text style={sc.actSolidText}>View Shelf</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* Couldn't identify */}
+          {mode === 'notfound' && (
+            <View style={sc.notfound}>
+              <Text style={sc.notfoundTitle}>Couldn't identify that book</Text>
+              <Text style={sc.notfoundText}>Make sure the barcode is inside the frame and well lit, then try again.</Text>
+              <TouchableOpacity style={[sc.act, sc.actShelf, { alignSelf: 'stretch', marginTop: 18 }]} onPress={reset} activeOpacity={0.85}>
+                <Text style={sc.actShelfText}>Scan again</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Added confirmation */}
+          {added && book && (
             <View style={sc.done}>
               <Animated.View style={[sc.doneCheck, { transform: [{ scale: checkScale }] }]}>
                 <CheckIcon color={WHITE} size={30} />
               </Animated.View>
               <Text style={sc.doneTitle}>{mode === 'shelf' ? 'Added to your Shelf' : 'Saved to your Wishlist'}</Text>
               <View style={sc.doneRow}>
-                <Image source={COVER} style={sc.doneRowImg} resizeMode="cover" />
+                <BookCover book={book} small />
                 <View style={sc.foundTxt}>
-                  <Text style={sc.foundTitle}>{FOUND.title}</Text>
-                  <Text style={sc.foundAuthor}>{FOUND.author}</Text>
+                  <Text style={sc.foundTitle} numberOfLines={2}>{book.title}</Text>
+                  <Text style={sc.foundAuthor} numberOfLines={1}>{book.author}</Text>
                 </View>
               </View>
               <View style={sc.actions}>
@@ -215,26 +267,52 @@ export default function ScanScreen() {
   );
 }
 
+// ── Book cover image with emoji fallback ───────────────────────────────────
+function BookCover({ book, small, large }: { book: Book; small?: boolean; large?: boolean }) {
+  const style = small ? sc.doneRowImg : large ? sc.foundImg : sc.foundImg;
+  if (book.coverUrl) {
+    return <Image source={{ uri: book.coverUrl }} style={style} resizeMode="cover" />;
+  }
+  return (
+    <View style={[style, sc.coverFallback]}>
+      <Text style={{ fontSize: small ? 20 : 30 }}>📖</Text>
+    </View>
+  );
+}
+
+// ── Found book row (cover + title + author + meta) ─────────────────────────
+function BookRow({ book }: { book: Book; large?: boolean }) {
+  const meta = [book.publishedYear, book.pageCount ? `${book.pageCount} pp` : null].filter(Boolean).join(' · ');
+  return (
+    <View style={sc.found}>
+      <BookCover book={book} large />
+      <View style={sc.foundTxt}>
+        <Text style={sc.foundTitle} numberOfLines={3}>{book.title}</Text>
+        <Text style={sc.foundAuthor} numberOfLines={1}>{book.author}</Text>
+        {!!meta && <Text style={sc.foundMeta}>{meta}</Text>}
+      </View>
+    </View>
+  );
+}
+
 const sc = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#100C09' },
 
+  // ── Permission fallback
+  permFill: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36, gap: 18, backgroundColor: '#100C09' },
+  permText: { color: 'rgba(255,255,255,0.85)', fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 },
+  permBtn: { backgroundColor: AMBER, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26 },
+  permBtnText: { color: WHITE, fontSize: 15, fontWeight: '800' },
+
   // ── Top bar
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 12, zIndex: 4 },
+  top: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 12, zIndex: 4 },
   topBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   topBtnOn: { backgroundColor: AMBER },
   topTitle: { fontSize: 16, fontWeight: '800', color: WHITE, letterSpacing: -0.2 },
 
-  // ── Viewfinder
-  view: { flex: 1, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  scene: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-  book: {
-    width: 168, height: 252, borderTopLeftRadius: 4, borderBottomLeftRadius: 4, borderTopRightRadius: 7, borderBottomRightRadius: 7,
-    transform: [{ perspective: 900 }, { rotateX: '7deg' }, { rotateY: '-9deg' }],
-    shadowColor: '#000', shadowOffset: { width: 0, height: 40 }, shadowOpacity: 0.6, shadowRadius: 60,
-  },
-
-  // Reticle
-  reticle: { position: 'absolute', width: 224, height: RETICLE_H, zIndex: 3 },
+  // ── Reticle
+  center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  reticle: { width: 224, height: RETICLE_H, zIndex: 3 },
   corner: { position: 'absolute', width: 34, height: 34, opacity: 0.95 },
   cornerTL: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 8 },
   cornerTR: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 8 },
@@ -244,22 +322,11 @@ const sc = StyleSheet.create({
 
   // Hint
   hint: {
-    position: 'absolute', bottom: 26, zIndex: 4, flexDirection: 'row', alignItems: 'center', gap: 8,
+    position: 'absolute', bottom: 120, flexDirection: 'row', alignItems: 'center', gap: 8,
     backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16,
   },
   hintText: { fontSize: 13, fontWeight: '700', color: WHITE },
   spinner: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: 'rgba(232,168,56,0.35)', borderTopColor: AMBER },
-
-  // ── Controls
-  controls: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingTop: 22, zIndex: 4 },
-  mini: { alignItems: 'center', gap: 6, width: 80 },
-  miniLabel: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
-  gallery: { width: 26, height: 26, borderRadius: 7, borderWidth: 1.6, borderColor: 'rgba(255,255,255,0.55)', backgroundColor: '#5A4470' },
-  shutter: {
-    width: 76, height: 76, borderRadius: 38, borderWidth: 4, borderColor: WHITE, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 20,
-  },
-  shutterIn: { width: 60, height: 60, borderRadius: 30, backgroundColor: WHITE },
 
   // ── Sheet
   sheet: {
@@ -271,13 +338,18 @@ const sc = StyleSheet.create({
   tag: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 7, backgroundColor: '#E9F4EC', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 },
   tagDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: GREEN },
   tagText: { fontSize: 12, fontWeight: '800', color: GREEN },
+  tagOwned: { backgroundColor: '#FBE4E8' },
+  tagTextOwned: { color: RED },
 
   found: { flexDirection: 'row', gap: 16, alignItems: 'center', marginTop: 16 },
-  foundImg: { width: 72, height: 108, borderRadius: 5, shadowColor: '#5A3C23', shadowOffset: { width: 2, height: 6 }, shadowOpacity: 0.28, shadowRadius: 16 },
+  foundImg: { width: 72, height: 108, borderRadius: 5, backgroundColor: '#F6EFE2', shadowColor: '#5A3C23', shadowOffset: { width: 2, height: 6 }, shadowOpacity: 0.28, shadowRadius: 16 },
+  coverFallback: { alignItems: 'center', justifyContent: 'center' },
   foundTxt: { flex: 1, minWidth: 0 },
   foundTitle: { fontFamily: 'Georgia', fontSize: 19, fontWeight: '600', lineHeight: 23, color: INK },
   foundAuthor: { fontSize: 13.5, fontWeight: '700', color: BROWN, marginTop: 3 },
   foundMeta: { fontSize: 12, fontWeight: '600', color: MUTE, marginTop: 6 },
+
+  ownedNote: { fontSize: 13.5, fontWeight: '600', color: '#8a6a32', lineHeight: 19, marginTop: 16 },
 
   actions: { flexDirection: 'row', gap: 11, marginTop: 22 },
   act: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 52, borderRadius: 15 },
@@ -288,6 +360,11 @@ const sc = StyleSheet.create({
   actSolid: { backgroundColor: INK },
   actSolidText: { fontSize: 14.5, fontWeight: '800', color: WHITE },
   again: { textAlign: 'center', marginTop: 14, fontSize: 13, fontWeight: '700', color: MUTE },
+
+  // ── Couldn't identify
+  notfound: { alignItems: 'center' },
+  notfoundTitle: { fontFamily: 'Georgia', fontSize: 20, fontWeight: '600', color: INK, marginTop: 4 },
+  notfoundText: { fontSize: 13.5, fontWeight: '600', color: MUTE, textAlign: 'center', lineHeight: 19, marginTop: 8 },
 
   // ── Confirmation
   done: { alignItems: 'center' },
@@ -300,5 +377,5 @@ const sc = StyleSheet.create({
     flexDirection: 'row', gap: 14, alignItems: 'center', alignSelf: 'stretch',
     backgroundColor: WHITE, borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)', borderRadius: 16, padding: 12, marginTop: 18,
   },
-  doneRowImg: { width: 48, height: 72, borderRadius: 4, shadowColor: '#5A3C23', shadowOffset: { width: 1, height: 3 }, shadowOpacity: 0.22, shadowRadius: 9 },
+  doneRowImg: { width: 48, height: 72, borderRadius: 4, backgroundColor: '#F6EFE2', shadowColor: '#5A3C23', shadowOffset: { width: 1, height: 3 }, shadowOpacity: 0.22, shadowRadius: 9 },
 });

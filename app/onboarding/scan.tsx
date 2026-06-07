@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
+import { useBookshelfStore } from '../../store/bookshelfStore';
+import { lookupBookByIsbn } from '../../lib/bookLookup';
+import type { Book } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK     = '#332C24';
@@ -13,6 +17,12 @@ const GREEN   = '#5BA66E';
 
 const TOTAL_STEPS  = 11;
 const CURRENT_STEP = 7; // segments 0–7 filled (screen 09)
+
+// 'scanning' → camera live, waiting for a barcode
+// 'identifying' → barcode caught, fetching from Google Books
+// 'found' → book identified, ready to add
+// 'notfound' → barcode read but no match
+type ScanState = 'scanning' | 'identifying' | 'found' | 'notfound';
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -46,11 +56,27 @@ function Check({ color = WHITE, size = 10 }: { color?: string; size?: number }) 
 // ── Main screen ────────────────────────────────────────────────────────────
 
 export default function ScanScreen() {
+  const { addToShelf } = useBookshelfStore();
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const [scanState, setScanState] = useState<ScanState>('scanning');
+  const [book, setBook] = useState<Book | null>(null);
   const [viewH, setViewH] = useState(0);
+
+  // Guards against the barcode callback firing many times per second
+  const lock = useRef(false);
   const sweep = useRef(new Animated.Value(0)).current;
 
-  // Loop the scan line up and down the viewport (DESIGN.md §4 "scanner line loop")
+  // Ask for camera access as soon as we land here
   useEffect(() => {
+    if (permission && !permission.granted && permission.canAskAgain) {
+      requestPermission();
+    }
+  }, [permission, requestPermission]);
+
+  // Loop the scan line while we're actively waiting for a barcode (§4)
+  useEffect(() => {
+    if (scanState !== 'scanning') return;
     const anim = Animated.loop(
       Animated.sequence([
         Animated.timing(sweep, { toValue: 1, duration: 1800, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
@@ -59,7 +85,34 @@ export default function ScanScreen() {
     );
     anim.start();
     return () => anim.stop();
-  }, [sweep]);
+  }, [scanState, sweep]);
+
+  const handleBarcode = useCallback(async ({ data }: BarcodeScanningResult) => {
+    if (lock.current) return;
+    lock.current = true;
+    setScanState('identifying');
+    const found = await lookupBookByIsbn(data);
+    if (found) {
+      setBook(found);
+      setScanState('found');
+    } else {
+      setScanState('notfound');
+    }
+  }, []);
+
+  const rescan = () => {
+    lock.current = false;
+    setBook(null);
+    setScanState('scanning');
+  };
+
+  const addAndContinue = () => {
+    // Onboarding = the reader's very first book, so no duplicate is possible.
+    if (book) addToShelf(book, 'want_to_read');
+    router.push('/onboarding/review');
+  };
+
+  const skip = () => router.push('/onboarding/review');
 
   const lineY = sweep.interpolate({
     inputRange: [0, 1],
@@ -83,14 +136,34 @@ export default function ScanScreen() {
       {/* ── Head ─────────────────────────────────────── */}
       <View style={sc.head}>
         <Text style={sc.title}>Grab the book closest{'\n'}to you right now.</Text>
-        <Text style={sc.sub}>Point your camera at the barcode and we'll do the rest.</Text>
+        <Text style={sc.sub}>Point your camera at the barcode and we'll add it to your library.</Text>
       </View>
 
       {/* ── Body ─────────────────────────────────────── */}
       <View style={sc.body}>
         {/* Camera viewport */}
         <View style={sc.scanView} onLayout={(e) => setViewH(e.nativeEvent.layout.height)}>
-          <Image source={require('../../assets/images/cover.png')} style={sc.scanBook} resizeMode="cover" />
+          {permission?.granted ? (
+            <CameraView
+              style={StyleSheet.absoluteFill}
+              facing="back"
+              barcodeScannerSettings={{ barcodeTypes: ['ean13'] }}
+              onBarcodeScanned={scanState === 'scanning' ? handleBarcode : undefined}
+            />
+          ) : (
+            <View style={sc.permissionWrap}>
+              <Text style={sc.permissionText}>
+                {permission && !permission.canAskAgain
+                  ? 'Camera access is off. Enable it in Settings to scan books.'
+                  : 'We need your camera to scan book barcodes.'}
+              </Text>
+              {permission && !permission.granted && permission.canAskAgain && (
+                <TouchableOpacity style={sc.permBtn} onPress={requestPermission} activeOpacity={0.85}>
+                  <Text style={sc.permBtnText}>Allow camera</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
 
           {/* Corner brackets */}
           <View style={[sc.corner, sc.cornerTL]} />
@@ -98,34 +171,79 @@ export default function ScanScreen() {
           <View style={[sc.corner, sc.cornerBL]} />
           <View style={[sc.corner, sc.cornerBR]} />
 
-          {/* Sweeping scan line */}
-          <Animated.View style={[sc.scanLine, { transform: [{ translateY: lineY }] }]} />
-        </View>
+          {/* Sweeping scan line — only while waiting for a barcode */}
+          {scanState === 'scanning' && permission?.granted && (
+            <Animated.View style={[sc.scanLine, { transform: [{ translateY: lineY }] }]} />
+          )}
 
-        {/* Result card */}
-        <View style={sc.result}>
-          <Image source={require('../../assets/images/cover.png')} style={sc.resultCover} resizeMode="cover" />
-          <View style={{ flex: 1 }}>
-            <Text style={sc.resultTitle}>Fourth Wing</Text>
-            <Text style={sc.resultAuthor}>Rebecca Yarros</Text>
-            <View style={sc.badge}>
-              <Check size={10} />
-              <Text style={sc.badgeText}>Added to your shelf</Text>
+          {/* Identifying overlay */}
+          {scanState === 'identifying' && (
+            <View style={sc.identifying}>
+              <ActivityIndicator color={AMBER} />
+              <Text style={sc.identifyingText}>Identifying…</Text>
             </View>
-          </View>
+          )}
         </View>
 
-        <Text style={sc.done}>Beautiful. Your first book is home.</Text>
+        {/* Result card — hidden until a book is identified */}
+        {scanState === 'found' && book && (
+          <>
+            <View style={sc.result}>
+              {book.coverUrl ? (
+                <Image source={{ uri: book.coverUrl }} style={sc.resultCover} resizeMode="cover" />
+              ) : (
+                <View style={[sc.resultCover, sc.resultCoverFallback]}>
+                  <Text style={sc.resultCoverGlyph}>📖</Text>
+                </View>
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={sc.resultTitle} numberOfLines={2}>{book.title}</Text>
+                <Text style={sc.resultAuthor} numberOfLines={1}>{book.author}</Text>
+                <View style={sc.badge}>
+                  <Check size={10} />
+                  <Text style={sc.badgeText}>Match found</Text>
+                </View>
+              </View>
+            </View>
+            <Text style={sc.done}>Your first book! Add to your shelf.</Text>
+          </>
+        )}
+
+        {/* Couldn't identify */}
+        {scanState === 'notfound' && (
+          <View style={sc.notice}>
+            <Text style={sc.noticeText}>
+              Hmm, we couldn't identify that one. Make sure the barcode is inside the frame and try again.
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* ── Footer ───────────────────────────────────── */}
       <View style={sc.footer}>
-        <TouchableOpacity style={sc.cta} onPress={() => router.push('/onboarding/review')} activeOpacity={0.85}>
-          <Text style={sc.ctaText}>Continue  →</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/onboarding/review')} activeOpacity={0.7}>
-          <Text style={sc.tinyLink}>I'll add books later</Text>
-        </TouchableOpacity>
+        {scanState === 'found' ? (
+          <>
+            <TouchableOpacity style={sc.cta} onPress={addAndContinue} activeOpacity={0.85}>
+              <Text style={sc.ctaText}>Add to your shelf  →</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={rescan} activeOpacity={0.7}>
+              <Text style={sc.tinyLink}>Re-scan</Text>
+            </TouchableOpacity>
+          </>
+        ) : scanState === 'notfound' ? (
+          <>
+            <TouchableOpacity style={sc.cta} onPress={rescan} activeOpacity={0.85}>
+              <Text style={sc.ctaText}>Try again</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={skip} activeOpacity={0.7}>
+              <Text style={sc.tinyLink}>I'll add books later</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity onPress={skip} activeOpacity={0.7}>
+            <Text style={sc.tinyLink}>I'll add books later</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -169,10 +287,12 @@ const sc = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  scanBook: {
-    width: 86, height: 124, borderRadius: 5,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 14 }, shadowOpacity: 0.5, shadowRadius: 30,
-  },
+
+  // Permission fallback inside the viewport
+  permissionWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 16 },
+  permissionText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '600', textAlign: 'center', lineHeight: 20 },
+  permBtn: { backgroundColor: AMBER, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 22 },
+  permBtnText: { color: WHITE, fontSize: 14, fontWeight: '800' },
 
   // Corner brackets — amber L-shapes
   corner: { position: 'absolute', width: 30, height: 30, borderColor: AMBER },
@@ -189,6 +309,13 @@ const sc = StyleSheet.create({
     shadowColor: AMBER, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.9, shadowRadius: 6,
   },
 
+  // Identifying overlay
+  identifying: {
+    ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: 'rgba(20,14,8,0.45)',
+  },
+  identifyingText: { color: '#FBE6BE', fontSize: 13.5, fontWeight: '700' },
+
   // ── Result card (§4 row)
   result: {
     flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16,
@@ -197,13 +324,15 @@ const sc = StyleSheet.create({
     shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 2,
   },
   resultCover: {
-    width: 46, height: 68, borderRadius: 4,
+    width: 46, height: 68, borderRadius: 4, backgroundColor: '#F6EFE2',
     shadowColor: '#5A3C23', shadowOffset: { width: 1, height: 2 }, shadowOpacity: 0.24, shadowRadius: 7,
   },
+  resultCoverFallback: { alignItems: 'center', justifyContent: 'center' },
+  resultCoverGlyph: { fontSize: 24 },
   resultTitle:  { fontSize: 15.5, fontWeight: '800', color: INK },
   resultAuthor: { fontSize: 12.5, fontWeight: '600', color: MUTE, fontFamily: 'Georgia', fontStyle: 'italic', marginTop: 1 },
 
-  // Green "added" badge
+  // Green "match" badge
   badge: {
     flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5,
     marginTop: 6, backgroundColor: GREEN, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9,
@@ -212,6 +341,13 @@ const sc = StyleSheet.create({
 
   // Done line — Lora serif
   done: { textAlign: 'center', fontFamily: 'Georgia', fontWeight: '600', fontSize: 18, color: INK, marginTop: 18 },
+
+  // Couldn't-identify notice
+  notice: {
+    marginTop: 16, padding: 16, borderRadius: 16, backgroundColor: '#FBF1DC',
+    borderWidth: 0.5, borderColor: 'rgba(232,168,56,0.35)',
+  },
+  noticeText: { fontSize: 13.5, fontWeight: '600', color: '#8a6a32', lineHeight: 19, textAlign: 'center' },
 
   // ── Footer
   footer: { paddingHorizontal: 20, paddingBottom: 16, paddingTop: 8 },

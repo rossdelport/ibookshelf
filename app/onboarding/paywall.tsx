@@ -27,7 +27,7 @@ const FEATURES = [
   'Shareable Wrapped cards, no watermark',
   'Advanced reading insights',
   'Animated lock-screen widgets',
-  'Unlimited shelves and follows',
+  'Unlimited books, shelves & notes',
 ];
 
 // ── Sub-components ─────────────────────────────────────────────────────────

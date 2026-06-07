@@ -1,11 +1,46 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Polygon } from 'react-native-svg';
 
 // ── Generative book cover (DESIGN.md §5 "Generative cover") ────────────────
 // Recreates the design's `.bcover`: a jewel-tone gradient spine-lit cover with
 // a Lora frame (title · diamond · author). When `pct` is provided it shows the
-// amber "currently reading" bookmark + a progress bar.
+// amber "currently reading" bookmark + a progress bar. If a `coverUrl` is
+// given (e.g. a scanned book's Google Books art) the real image is shown
+// instead, keeping the same shadow + reading-progress overlay.
+
+// Jewel-tone fallback palette for books that have no cover art — picked
+// deterministically from the title so a book always looks the same.
+const PALETTE: { bg: string; ink: string }[] = [
+  { bg: '#463353', ink: '#D8B26A' },
+  { bg: '#5A2A38', ink: '#D8B26A' },
+  { bg: '#2E4A3E', ink: '#D8B26A' },
+  { bg: '#3A4A60', ink: '#EBE0C9' },
+  { bg: '#8A4A2E', ink: '#EBE0C9' },
+  { bg: '#1F4A4A', ink: '#D8B26A' },
+  { bg: '#262430', ink: '#D8B26A' },
+  { bg: '#5A2233', ink: '#D8B26A' },
+];
+
+function pickPalette(title: string): { bg: string; ink: string } {
+  let h = 0;
+  for (let i = 0; i < title.length; i++) h = (h * 31 + title.charCodeAt(i)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+
+// Amber bookmark + progress bar overlay shared by both cover variants.
+function ReadingOverlay({ pct }: { pct: number }) {
+  return (
+    <>
+      <Svg width={11} height={23} style={bc.mark} viewBox="0 0 11 23">
+        <Polygon points="0,0 11,0 11,23 5.5,18 0,23" fill="#E8A838" />
+      </Svg>
+      <View style={bc.prog}>
+        <View style={[bc.progFill, { width: `${Math.round(pct * 100)}%` }]} />
+      </View>
+    </>
+  );
+}
 
 // Lighten (pct>0) / darken (pct<0) a #rrggbb toward white/black.
 function shade(hex: string, pct: number): string {
@@ -30,19 +65,42 @@ export function BookCover({
   bg,
   ink,
   pct,
+  coverUrl,
 }: {
   title: string;
   author: string;
-  bg: string;
-  ink: string;
+  bg?: string;
+  ink?: string;
   pct?: number;
+  coverUrl?: string;
 }) {
   const reading = typeof pct === 'number';
+
+  // Real cover art (e.g. scanned book) — show the image, keep shadow + overlay.
+  if (coverUrl) {
+    return (
+      <View style={bc.shadowWrap}>
+        <View style={bc.cover}>
+          <Image source={{ uri: coverUrl }} style={bc.img} resizeMode="cover" />
+          <LinearGradient
+            colors={['rgba(0,0,0,0.34)', 'rgba(0,0,0,0)']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 0.32, y: 0.5 }}
+            style={bc.spine}
+          />
+          {reading && <ReadingOverlay pct={pct!} />}
+        </View>
+      </View>
+    );
+  }
+
+  // Generative cover — jewel-tone gradient + Lora frame.
+  const pal = bg && ink ? { bg, ink } : pickPalette(title);
 
   return (
     <View style={bc.shadowWrap}>
       <LinearGradient
-        colors={[shade(bg, 0.15), bg, shade(bg, -0.24)]}
+        colors={[shade(pal.bg, 0.15), pal.bg, shade(pal.bg, -0.24)]}
         locations={[0, 0.52, 1]}
         start={{ x: 0.15, y: 0 }}
         end={{ x: 0.85, y: 1 }}
@@ -57,23 +115,14 @@ export function BookCover({
         />
 
         {/* Frame */}
-        <View style={[bc.frame, { borderColor: hexToRgba(ink, 0.52) }]}>
-          <Text style={[bc.title, { color: ink }]} numberOfLines={3}>{title.toUpperCase()}</Text>
-          <Text style={[bc.dia, { color: ink }]}>◇</Text>
-          <Text style={[bc.author, { color: ink }]} numberOfLines={2}>{author.toUpperCase()}</Text>
+        <View style={[bc.frame, { borderColor: hexToRgba(pal.ink, 0.52) }]}>
+          <Text style={[bc.title, { color: pal.ink }]} numberOfLines={3}>{title.toUpperCase()}</Text>
+          <Text style={[bc.dia, { color: pal.ink }]}>◇</Text>
+          <Text style={[bc.author, { color: pal.ink }]} numberOfLines={2}>{author.toUpperCase()}</Text>
         </View>
 
         {/* Currently-reading bookmark + progress */}
-        {reading && (
-          <>
-            <Svg width={11} height={23} style={bc.mark} viewBox="0 0 11 23">
-              <Polygon points="0,0 11,0 11,23 5.5,18 0,23" fill="#E8A838" />
-            </Svg>
-            <View style={bc.prog}>
-              <View style={[bc.progFill, { width: `${Math.round(pct! * 100)}%` }]} />
-            </View>
-          </>
-        )}
+        {reading && <ReadingOverlay pct={pct!} />}
       </LinearGradient>
     </View>
   );
@@ -96,6 +145,7 @@ const bc = StyleSheet.create({
     borderBottomRightRadius: 5,
     overflow: 'hidden',
   },
+  img: { width: '100%', height: '100%', backgroundColor: '#2A2420' },
   spine: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 },
   frame: {
     position: 'absolute',

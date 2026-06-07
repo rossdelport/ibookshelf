@@ -29,7 +29,13 @@
     "plugins": [
       "expo-router",
       "expo-splash-screen",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "iBookshelf uses your camera to scan book barcodes and add them to your library."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

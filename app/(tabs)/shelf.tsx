@@ -1,42 +1,36 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { router } from 'expo-router';
 import { BookCover } from '../../components/BookCover';
 import { PlusIcon, SearchIcon } from '../../components/icons';
+import { useBookshelfStore } from '../../store/bookshelfStore';
+import type { ReadingStatus, ShelfBook } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
 const MUTE  = '#A89A88';
 const BROWN = '#8B5E3C';
+const AMBER = '#E8A838';
 const WHITE = '#FFFFFF';
 
-interface Book { t: string; a: string; bg: string; ink: string; pct?: number }
-
-const BOOKS: Book[] = [
-  { t: 'Fourth Wing',      a: 'Rebecca Yarros',   bg: '#463353', ink: '#D8B26A', pct: 0.6 },
-  { t: 'Iron Flame',       a: 'Rebecca Yarros',   bg: '#5A2A38', ink: '#D8B26A' },
-  { t: 'Court of Roses',   a: 'Sarah J. Maas',    bg: '#4A3A5E', ink: '#C9B6E0' },
-  { t: 'Babel',            a: 'R. F. Kuang',      bg: '#2E4A3E', ink: '#D8B26A' },
-  { t: 'Circe',            a: 'Madeline Miller',  bg: '#8A4A2E', ink: '#EBE0C9' },
-  { t: 'Song of Achilles', a: 'Madeline Miller',  bg: '#1F4A4A', ink: '#D8B26A' },
-  { t: 'Piranesi',         a: 'Susanna Clarke',   bg: '#3A4A60', ink: '#EBE0C9' },
-  { t: 'Crescent City',    a: 'Sarah J. Maas',    bg: '#5A2233', ink: '#D8B26A' },
-  { t: 'Mexican Gothic',   a: 'S. Moreno-Garcia', bg: '#26382E', ink: '#E0B0BC' },
-  { t: 'The Atlas Six',    a: 'Olivie Blake',     bg: '#262430', ink: '#D8B26A' },
-  { t: 'The Priory',       a: 'Samantha Shannon', bg: '#1E4A3A', ink: '#D8B26A' },
-  { t: 'Yellowface',       a: 'R. F. Kuang',      bg: '#C9A22E', ink: '#2A2620' },
-  { t: 'Name of the Wind', a: 'Patrick Rothfuss', bg: '#3A352F', ink: '#D8B26A' },
-  { t: 'Hail Mary',        a: 'Andy Weir',        bg: '#23304F', ink: '#EBE0C9' },
-  { t: 'A Little Life',    a: 'Hanya Yanagihara', bg: '#6A3A20', ink: '#EBE0C9' },
-];
-
-const FILTERS = ['All', 'Reading', 'Finished', 'Want to read'];
+const FILTERS = ['All', 'Reading', 'Finished', 'Want to read'] as const;
+const STATUS_FOR: Record<string, ReadingStatus> = {
+  Reading: 'reading',
+  Finished: 'read',
+  'Want to read': 'want_to_read',
+};
 
 function chunk<T>(arr: T[], n: number): T[][] {
   const out: T[][] = [];
   for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
   return out;
+}
+
+function progressFor(b: ShelfBook): number | undefined {
+  if (b.shelf.status !== 'reading' || !b.pageCount) return undefined;
+  return Math.min((b.shelf.currentPage ?? 0) / b.pageCount, 1);
 }
 
 // ── Wooden shelf plank (§5) ────────────────────────────────────────────────
@@ -58,7 +52,26 @@ function Plank() {
 
 export default function ShelfScreen() {
   const insets = useSafeAreaInsets();
-  const [filter, setFilter] = useState('All');
+  const [filter, setFilter] = useState<string>('All');
+
+  const books = useBookshelfStore((s) => s.books);
+  const shelf = useBookshelfStore((s) => s.shelf);
+
+  // Owned library = everything on the shelf except wishlist items.
+  const owned = useMemo(
+    () =>
+      Object.values(shelf)
+        .filter((e) => e.status !== 'wishlist')
+        .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
+        .map((e) => ({ ...books[e.bookId], shelf: e }))
+        .filter((b): b is ShelfBook => !!b.id),
+    [books, shelf],
+  );
+
+  const total = owned.length;
+  const readCount = owned.filter((b) => b.shelf.status === 'read').length;
+
+  const visible = filter === 'All' ? owned : owned.filter((b) => b.shelf.status === STATUS_FOR[filter]);
 
   return (
     <LinearGradient colors={['#FAF8F3', '#F3ECDF']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={sl.fill}>
@@ -70,51 +83,81 @@ export default function ShelfScreen() {
         </View>
         <View style={sl.topActions}>
           <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7}><SearchIcon color={INK} /></TouchableOpacity>
-          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7}><PlusIcon color={INK} /></TouchableOpacity>
+          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.navigate('/(tabs)/scan')}>
+            <PlusIcon color={INK} />
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* ── Heading ──────────────────────────────────── */}
       <View style={sl.head}>
         <Text style={sl.h1}>My Library</Text>
-        <Text style={sl.sub}><Text style={sl.subStrong}>15 books</Text> · 12 read this year</Text>
+        <Text style={sl.sub}>
+          <Text style={sl.subStrong}>{total} book{total === 1 ? '' : 's'}</Text>
+          {readCount > 0 ? ` · ${readCount} read` : ' · start scanning'}
+        </Text>
       </View>
 
-      {/* ── Filter chips ─────────────────────────────── */}
-      <View style={sl.filtersWrap}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sl.filters}>
-          {FILTERS.map((f) => {
-            const active = f === filter;
-            return (
-              <TouchableOpacity key={f} style={[sl.chip, active && sl.chipActive]} onPress={() => setFilter(f)} activeOpacity={0.8}>
-                <Text style={[sl.chipText, active && sl.chipTextActive]}>{f}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* ── Wooden shelves, 3 across ─────────────────── */}
-      <ScrollView
-        style={sl.shelves}
-        contentContainerStyle={[sl.shelvesContent, { paddingBottom: insets.bottom + 96 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {chunk(BOOKS, 3).map((row, i) => (
-          <View key={i} style={sl.row}>
-            <View style={sl.books}>
-              {row.map((b) => (
-                <View key={b.t} style={sl.bookSlot}>
-                  <BookCover title={b.t} author={b.a} bg={b.bg} ink={b.ink} pct={b.pct} />
-                </View>
-              ))}
-              {/* keep last row left-aligned if fewer than 3 */}
-              {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, k) => <View key={`s${k}`} style={sl.bookSlot} />)}
-            </View>
-            <Plank />
+      {total === 0 ? (
+        // ── Empty state ──────────────────────────────
+        <View style={sl.empty}>
+          <Text style={sl.emptyEmoji}>📚</Text>
+          <Text style={sl.emptyTitle}>Your shelf is empty</Text>
+          <Text style={sl.emptyText}>
+            Scan the barcode on any book you own and it'll appear here — so you always know what's already on your shelf.
+          </Text>
+          <TouchableOpacity style={sl.emptyCta} onPress={() => router.navigate('/(tabs)/scan')} activeOpacity={0.85}>
+            <Text style={sl.emptyCtaText}>Scan your first book  →</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          {/* ── Filter chips ─────────────────────────── */}
+          <View style={sl.filtersWrap}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sl.filters}>
+              {FILTERS.map((f) => {
+                const active = f === filter;
+                return (
+                  <TouchableOpacity key={f} style={[sl.chip, active && sl.chipActive]} onPress={() => setFilter(f)} activeOpacity={0.8}>
+                    <Text style={[sl.chipText, active && sl.chipTextActive]}>{f}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
           </View>
-        ))}
-      </ScrollView>
+
+          {/* ── Wooden shelves, 3 across ─────────────── */}
+          <ScrollView
+            style={sl.shelves}
+            contentContainerStyle={[sl.shelvesContent, { paddingBottom: insets.bottom + 96 }]}
+            showsVerticalScrollIndicator={false}
+          >
+            {visible.length === 0 ? (
+              <Text style={sl.filterEmpty}>No books here yet.</Text>
+            ) : (
+              chunk(visible, 3).map((row, i) => (
+                <View key={i} style={sl.row}>
+                  <View style={sl.books}>
+                    {row.map((b) => (
+                      <TouchableOpacity
+                        key={b.id}
+                        style={sl.bookSlot}
+                        activeOpacity={0.85}
+                        onPress={() => router.push({ pathname: '/book/[id]', params: { id: b.id } })}
+                      >
+                        <BookCover title={b.title} author={b.author} coverUrl={b.coverUrl} pct={progressFor(b)} />
+                      </TouchableOpacity>
+                    ))}
+                    {/* keep last row left-aligned if fewer than 3 */}
+                    {row.length < 3 && Array.from({ length: 3 - row.length }).map((_, k) => <View key={`s${k}`} style={sl.bookSlot} />)}
+                  </View>
+                  <Plank />
+                </View>
+              ))
+            )}
+          </ScrollView>
+        </>
+      )}
     </LinearGradient>
   );
 }
@@ -167,6 +210,7 @@ const sl = StyleSheet.create({
   row: {},
   books: { flexDirection: 'row', alignItems: 'flex-end', gap: 18, zIndex: 2 },
   bookSlot: { flex: 1 },
+  filterEmpty: { textAlign: 'center', color: MUTE, fontSize: 14, fontWeight: '600', marginTop: 40 },
 
   // Wooden plank
   plankWrap: { marginTop: -2, zIndex: 1 },
@@ -179,4 +223,15 @@ const sl = StyleSheet.create({
     height: 7, marginHorizontal: -5, borderBottomLeftRadius: 3, borderBottomRightRadius: 3,
     shadowColor: '#462D14', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 11, elevation: 4,
   },
+
+  // ── Empty state
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingBottom: 60 },
+  emptyEmoji: { fontSize: 52, marginBottom: 18 },
+  emptyTitle: { fontFamily: 'Georgia', fontSize: 22, fontWeight: '600', color: INK },
+  emptyText: { fontSize: 14.5, fontWeight: '500', color: MUTE, textAlign: 'center', lineHeight: 22, marginTop: 10 },
+  emptyCta: {
+    backgroundColor: AMBER, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 26, marginTop: 26,
+    shadowColor: '#E29A2A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 5,
+  },
+  emptyCtaText: { color: WHITE, fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
 });

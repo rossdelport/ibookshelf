@@ -91,9 +91,9 @@ export default function SignUpScreen() {
         {/* ── Body ─────────────────────────────────────── */}
         <View style={su.body}>
           {/* Title — §3 Screen H1: 26px / 800 / Nunito / left-aligned */}
-          <Text style={su.title}>Save your shelf.{'\n'}Start your story.</Text>
+          <Text style={su.title}>Save your library.{'\n'}Take it anywhere.</Text>
           <Text style={su.sub}>
-            Your shelf, streak, and circle, saved and synced wherever you read.
+            Your whole collection, synced to your phone — so you always know what you own, even in the bookstore.
           </Text>
 
           {/* ── Auth buttons ─────────────────────────── */}

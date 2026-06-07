@@ -48,23 +48,31 @@ export default function MirrorScreen() {
       <View style={mir.body}>
         {/* Hero headline */}
         <Text style={mir.headline}>
-          Life gets busy.{'\n'}That's exactly why{'\n'}we built this.
+          You own more books{'\n'}than you can{'\n'}remember.
         </Text>
 
         {/* Stat blockquote card */}
         <View style={mir.statCard}>
           <View style={mir.statBar} />
           <Text style={mir.statText}>
-            {'The average person buys '}
-            <Text style={mir.statBold}>12 books</Text>
-            {' a year, and finishes just '}
-            <Text style={mir.statBold}>3</Text>
-            {'.'}
+            {'1 in 5 book lovers has '}
+            <Text style={mir.statBold}>bought a book they already owned</Text>
+            {' — simply because they forgot.'}
+          </Text>
+        </View>
+
+        {/* Savings highlight — concrete cost of buying duplicates */}
+        <View style={mir.saveCard}>
+          <Text style={mir.saveAmount}>$100+</Text>
+          <Text style={mir.saveLabel}>
+            {'is what readers typically waste on '}
+            <Text style={mir.saveBold}>duplicate books</Text>
+            {' — money iBookshelf helps you keep.'}
           </Text>
         </View>
 
         {/* Tagline */}
-        <Text style={mir.tagline}>iBookshelf changes that.</Text>
+        <Text style={mir.tagline}>iBookshelf remembers, so you never buy twice.</Text>
       </View>
 
       {/* ── Footer CTA ─────────────────────────────────── */}
@@ -202,6 +210,37 @@ const mir = StyleSheet.create({
   statBold: {
     fontWeight: '800',
     color: INK,
+  },
+
+  // ── Savings highlight — amber-pale callout (§2 amber pale + text-on-pale)
+  saveCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    backgroundColor: '#FBF1DC',
+    borderRadius: 18,
+    borderWidth: 0.5,
+    borderColor: 'rgba(232,168,56,0.35)',
+    paddingVertical: 18,
+    paddingHorizontal: 18,
+  },
+  // Big stat number — Nunito 800 with negative tracking (§3)
+  saveAmount: {
+    fontSize: 38,
+    fontWeight: '800',
+    color: '#C0851E',
+    letterSpacing: -1,
+  },
+  saveLabel: {
+    flex: 1,
+    fontSize: 13.5,
+    fontWeight: '600',
+    color: '#8a6a32',
+    lineHeight: 19,
+  },
+  saveBold: {
+    fontWeight: '800',
+    color: '#C0851E',
   },
 
   // "Fable changes that." — Brown secondary, §2 color token

@@ -1,8 +1,12 @@
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useEffect, useMemo, useRef } from 'react';
+import { Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Defs, LinearGradient as SvgGradient, Path, Stop } from 'react-native-svg';
+import { router } from 'expo-router';
+import { Accelerometer } from 'expo-sensors';
 import { ArrowIcon, BellIcon, PlayIcon, SearchIcon } from '../../components/icons';
+import { useBookshelfStore } from '../../store/bookshelfStore';
+import type { ShelfBook } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -10,49 +14,80 @@ const MUTE  = '#A89A88';
 const BROWN = '#8B5E3C';
 const AMBER = '#E8A838';
 const WHITE = '#FFFFFF';
+const CREAM = '#FBF1DC';
 
-// ── Progress arc behind the hero book (240° sweep from 150°) ───────────────
-function ProgressArc({ pct }: { pct: number }) {
-  const r = 126, c = 150;
-  const start = 150, total = 240;
-  const polar = (deg: number) => {
-    const a = (deg * Math.PI) / 180;
-    return [c + r * Math.cos(a), c + r * Math.sin(a)] as const;
-  };
-  const [x0, y0] = polar(start);
-  const [x1, y1] = polar(start + total);
-  const [xp, yp] = polar(start + total * pct);
-  const largeTrack = total > 180 ? 1 : 0;
-  const largeProg  = total * pct > 180 ? 1 : 0;
-
-  return (
-    <Svg width={300} height={300} viewBox="0 0 300 300" style={ho.arc}>
-      <Defs>
-        <SvgGradient id="ag" x1="0" y1="1" x2="1" y2="0">
-          <Stop offset="0" stopColor="#F0BC5A" />
-          <Stop offset="1" stopColor="#E29A2A" />
-        </SvgGradient>
-      </Defs>
-      <Path d={`M${x0} ${y0} A${r} ${r} 0 ${largeTrack} 1 ${x1} ${y1}`} fill="none" stroke="#EFE7DA" strokeWidth={9} strokeLinecap="round" />
-      <Path d={`M${x0} ${y0} A${r} ${r} 0 ${largeProg} 1 ${xp} ${yp}`} fill="none" stroke="url(#ag)" strokeWidth={9} strokeLinecap="round" />
-    </Svg>
-  );
+function progressOf(b: ShelfBook): number {
+  if (!b.pageCount) return 0;
+  return Math.min((b.shelf.currentPage ?? 0) / b.pageCount, 1);
 }
 
-// ── 3D hero book ────────────────────────────────────────────────────────────
-function HeroBook() {
+// ── 3D hero book that tilts with the phone (parallax via accelerometer) ─────
+function HeroBook({ book, pct }: { book: ShelfBook; pct: number }) {
+  // roll = left/right tilt, pitch = forward/back tilt, both re-centred to
+  // however the phone is being held when the screen mounts.
+  const roll = useRef(new Animated.Value(0)).current;
+  const pitch = useRef(new Animated.Value(0)).current;
+  const base = useRef<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    let sub: ReturnType<typeof Accelerometer.addListener> | undefined;
+    let active = true;
+    (async () => {
+      const ok = await Accelerometer.isAvailableAsync().catch(() => false);
+      if (!ok || !active) return;
+      Accelerometer.setUpdateInterval(60);
+      sub = Accelerometer.addListener(({ x, y }) => {
+        if (!base.current) base.current = { x, y };
+        const clamp = (v: number) => Math.max(-1, Math.min(1, v));
+        const dx = clamp((x - base.current.x) * 1.6);
+        const dy = clamp((y - base.current.y) * 1.6);
+        Animated.timing(roll, { toValue: dx, duration: 90, useNativeDriver: true }).start();
+        Animated.timing(pitch, { toValue: dy, duration: 90, useNativeDriver: true }).start();
+      });
+    })();
+    return () => { active = false; sub?.remove(); };
+  }, [roll, pitch]);
+
+  // Neutral pose ≈ the original -13°/4° 3D look; tilt nudges around it.
+  const rotateY = roll.interpolate({ inputRange: [-1, 1], outputRange: ['-33deg', '9deg'] });
+  const rotateX = pitch.interpolate({ inputRange: [-1, 1], outputRange: ['16deg', '-8deg'] });
+
   return (
     <View style={ho.bookZone}>
       <View style={ho.bookShadow} />
-      <View style={ho.book3d}>
-        <Image source={require('../../assets/images/cover.png')} style={ho.bookCover} resizeMode="cover" />
+      <Animated.View
+        style={[ho.book3d, { transform: [{ perspective: 1400 }, { rotateY }, { rotateX }, { rotateZ: '-1deg' }] }]}
+      >
+        {book.coverUrl ? (
+          <Image source={{ uri: book.coverUrl }} style={ho.bookCover} resizeMode="cover" />
+        ) : (
+          <View style={[ho.bookCover, ho.bookCoverFallback]}>
+            <Text style={ho.bookCoverFallbackText} numberOfLines={4}>{book.title.toUpperCase()}</Text>
+          </View>
+        )}
         {/* Spine shade (inset-left) */}
         <LinearGradient colors={['rgba(0,0,0,0.30)', 'rgba(0,0,0,0)']} start={{ x: 0, y: 0.5 }} end={{ x: 0.28, y: 0.5 }} style={ho.bookSpine} />
         {/* Page edges on the right */}
         <View style={ho.bookPages} />
         {/* Sheen */}
         <LinearGradient colors={['rgba(255,255,255,0.30)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 0.45 }} style={ho.bookSheen} />
+      </Animated.View>
+
+      {/* Progress pill — high-contrast against the cover */}
+      <View style={ho.pill}>
+        <Text style={ho.pillText}>{Math.round(pct * 100)}%</Text>
       </View>
+    </View>
+  );
+}
+
+function MiniCover({ book }: { book: ShelfBook }) {
+  if (book.coverUrl) {
+    return <Image source={{ uri: book.coverUrl }} style={ho.miniBook} resizeMode="cover" />;
+  }
+  return (
+    <View style={[ho.miniBook, ho.miniFallback]}>
+      <Text style={ho.miniFallbackText} numberOfLines={3}>{book.title.toUpperCase()}</Text>
     </View>
   );
 }
@@ -86,8 +121,38 @@ function Friend({ avatar, soul, name, book, pct }: { avatar: any; soul: string; 
 // ── Main screen ────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const pagesRead = 312, pagesTotal = 517;
-  const pct = pagesRead / pagesTotal;
+  const books = useBookshelfStore((s) => s.books);
+  const shelf = useBookshelfStore((s) => s.shelf);
+
+  const owned = useMemo(
+    () =>
+      Object.values(shelf)
+        .filter((e) => e.status !== 'wishlist')
+        .map((e) => ({ ...books[e.bookId], shelf: e }))
+        .filter((b): b is ShelfBook => !!b.id),
+    [books, shelf],
+  );
+
+  // Hero = the book they're currently reading, else the most recently added.
+  const recent = useMemo(
+    () => [...owned].sort((a, b) => new Date(b.shelf.addedAt).getTime() - new Date(a.shelf.addedAt).getTime()),
+    [owned],
+  );
+  const reading = useMemo(
+    () =>
+      owned
+        .filter((b) => b.shelf.status === 'reading')
+        .sort((a, b) =>
+          new Date(b.shelf.startedAt ?? b.shelf.addedAt).getTime() - new Date(a.shelf.startedAt ?? a.shelf.addedAt).getTime(),
+        ),
+    [owned],
+  );
+  const current = reading[0] ?? recent[0] ?? null;
+
+  const readCount = owned.filter((b) => b.shelf.status === 'read').length;
+  const miniBooks = recent.slice(0, 4);
+  const more = owned.length - miniBooks.length;
+  const pct = current ? progressOf(current) : 0;
 
   return (
     <ScrollView
@@ -115,52 +180,76 @@ export default function HomeScreen() {
       {/* ── Greeting ─────────────────────────────────── */}
       <View style={ho.greeting}>
         <Text style={ho.greetingH1}>Good morning, Ross <Text style={ho.leaf}>🌿</Text></Text>
-        <Text style={ho.streak}>🔥 14 day reading streak</Text>
+        <Text style={ho.streak}>📚 {owned.length} book{owned.length === 1 ? '' : 's'} in your library</Text>
       </View>
 
-      {/* ── Hero ─────────────────────────────────────── */}
-      <View style={ho.hero}>
-        <ProgressArc pct={pct} />
-        <HeroBook />
-        <View style={ho.pagesBadge}>
-          <Text style={ho.pagesBadgeText}><Text style={ho.pagesBadgeStrong}>{pagesRead}</Text>/{pagesTotal} pages</Text>
+      {current ? (
+        <>
+          {/* ── Hero ─────────────────────────────────── */}
+          <View style={ho.hero}>
+            <HeroBook book={current} pct={pct} />
+          </View>
+
+          <TouchableOpacity
+            style={ho.bookMeta}
+            activeOpacity={0.7}
+            onPress={() => router.push({ pathname: '/book/[id]', params: { id: current.id } })}
+          >
+            <Text style={ho.bookTitle} numberOfLines={2}>{current.title}</Text>
+            <Text style={ho.bookAuthor}>{current.author}</Text>
+            {!!current.pageCount && (
+              <Text style={ho.pages}>
+                <Text style={ho.pagesStrong}>{current.shelf.currentPage ?? 0}</Text> / {current.pageCount} pages
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={ho.startBtn}
+            activeOpacity={0.85}
+            onPress={() => router.push({ pathname: '/book/[id]', params: { id: current.id } })}
+          >
+            <PlayIcon color={WHITE} />
+            <Text style={ho.startBtnText}>Start Reading Session</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        // ── Empty hero (no books yet) ───────────────
+        <View style={ho.emptyHero}>
+          <Text style={ho.emptyEmoji}>📚</Text>
+          <Text style={ho.emptyTitle}>Your shelf is waiting</Text>
+          <Text style={ho.emptyText}>Scan a book you own to start your library.</Text>
+          <TouchableOpacity style={ho.startBtn} activeOpacity={0.85} onPress={() => router.navigate('/(tabs)/scan')}>
+            <Text style={ho.startBtnText}>Scan a book  →</Text>
+          </TouchableOpacity>
         </View>
-      </View>
-
-      <View style={ho.bookMeta}>
-        <Text style={ho.bookTitle}>Fourth Wing</Text>
-        <Text style={ho.bookAuthor}>Rebecca Yarros</Text>
-      </View>
-
-      <TouchableOpacity style={ho.startBtn} activeOpacity={0.85}>
-        <PlayIcon color={WHITE} />
-        <Text style={ho.startBtnText}>Start Reading Session</Text>
-      </TouchableOpacity>
+      )}
 
       {/* ── Quick stats ──────────────────────────────── */}
       <View style={ho.stats}>
-        <Stat emoji="📚" value="12"  label="Books Read" />
-        <Stat emoji="📄" value="847" label="Pages · Month" />
-        <Stat emoji="🔥" value="14"  label="Day Streak" />
+        <Stat emoji="📚" value={String(owned.length)} label="In Library" />
+        <Stat emoji="✅" value={String(readCount)} label="Books Read" />
+        <Stat emoji="🔥" value="1" label="Day Streak" />
       </View>
 
       {/* ── My Shelf card ────────────────────────────── */}
-      <View style={ho.bigCard}>
+      <TouchableOpacity style={ho.bigCard} activeOpacity={0.85} onPress={() => router.navigate('/(tabs)/shelf')}>
         <View style={ho.bigCardHead}>
           <View>
             <Text style={ho.bigCardTitle}>My Shelf</Text>
-            <Text style={ho.bigCardSub}>Currently reading · 4 books</Text>
+            <Text style={ho.bigCardSub}>{owned.length} book{owned.length === 1 ? '' : 's'} in your library</Text>
           </View>
           <ArrowIcon color={MUTE} />
         </View>
-        <View style={ho.shelfRow}>
-          <LinearGradient colors={['#3A2E50', '#5B3550']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={ho.miniBook} />
-          <LinearGradient colors={['#1F5C4D', '#2E7D63']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={ho.miniBook} />
-          <LinearGradient colors={['#8B3A2E', '#B5572F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={ho.miniBook} />
-          <LinearGradient colors={['#23415E', '#356087']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={ho.miniBook} />
-          <View style={ho.shelfMore}><Text style={ho.shelfMoreText}>+8</Text></View>
-        </View>
-      </View>
+        {miniBooks.length > 0 ? (
+          <View style={ho.shelfRow}>
+            {miniBooks.map((b) => <MiniCover key={b.id} book={b} />)}
+            {more > 0 && <View style={ho.shelfMore}><Text style={ho.shelfMoreText}>+{more}</Text></View>}
+          </View>
+        ) : (
+          <Text style={ho.shelfEmpty}>Nothing here yet — scan a book to begin.</Text>
+        )}
+      </TouchableOpacity>
 
       {/* ── Community card ───────────────────────────── */}
       <View style={ho.bigCard}>
@@ -212,19 +301,17 @@ const ho = StyleSheet.create({
   streak: { marginTop: 5, fontSize: 14.5, fontWeight: '600', color: BROWN },
 
   // ── Hero
-  hero: { height: 296, alignItems: 'center', justifyContent: 'center', marginTop: 16 },
-  arc: { position: 'absolute', top: '50%', left: '50%', marginTop: -150, marginLeft: -150 },
+  hero: { height: 290, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
 
-  bookZone: { alignItems: 'center', justifyContent: 'center', marginTop: -18 },
+  bookZone: { alignItems: 'center', justifyContent: 'center' },
   bookShadow: {
     position: 'absolute', bottom: -22, width: 130, height: 22, borderRadius: 60,
     backgroundColor: 'rgba(90,60,35,0.28)', opacity: 0.9, transform: [{ scaleX: 1.2 }],
   },
-  book3d: {
-    width: 152, height: 226,
-    transform: [{ perspective: 1400 }, { rotateY: '-21deg' }, { rotateX: '5deg' }, { rotateZ: '-1deg' }],
-  },
-  bookCover: { position: 'absolute', top: 0, left: 0, width: 152, height: 226, borderTopLeftRadius: 5, borderBottomLeftRadius: 5, borderTopRightRadius: 7, borderBottomRightRadius: 7 },
+  book3d: { width: 152, height: 226 },
+  bookCover: { position: 'absolute', top: 0, left: 0, width: 152, height: 226, borderTopLeftRadius: 5, borderBottomLeftRadius: 5, borderTopRightRadius: 7, borderBottomRightRadius: 7, backgroundColor: '#2A2420' },
+  bookCoverFallback: { alignItems: 'center', justifyContent: 'center', padding: 16, backgroundColor: '#463353' },
+  bookCoverFallbackText: { fontFamily: 'Georgia', fontWeight: '600', fontSize: 15, lineHeight: 19, letterSpacing: 0.6, color: '#E8D9B5', textAlign: 'center' },
   bookSpine: { position: 'absolute', top: 0, bottom: 0, left: 0, width: 152, borderTopLeftRadius: 5, borderBottomLeftRadius: 5 },
   bookPages: {
     position: 'absolute', top: 3, bottom: 3, right: -11, width: 13, backgroundColor: '#EFE6D2',
@@ -232,18 +319,20 @@ const ho = StyleSheet.create({
   },
   bookSheen: { position: 'absolute', top: 0, left: 0, width: 152, height: 226, borderTopLeftRadius: 5, borderBottomLeftRadius: 5, borderTopRightRadius: 7, borderBottomRightRadius: 7 },
 
-  pagesBadge: {
-    position: 'absolute', bottom: 8, backgroundColor: WHITE, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 14,
-    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
-    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3,
+  // Progress pill — ink fill / cream text (high contrast vs any cover)
+  pill: {
+    position: 'absolute', top: 18, right: 36, backgroundColor: INK, borderRadius: 999,
+    paddingVertical: 7, paddingHorizontal: 14, borderWidth: 1.5, borderColor: CREAM,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
   },
-  pagesBadgeText: { fontSize: 12.5, fontWeight: '600', color: BROWN },
-  pagesBadgeStrong: { color: INK, fontWeight: '800' },
+  pillText: { color: CREAM, fontWeight: '800', fontSize: 14, letterSpacing: -0.2 },
 
   // ── Book meta
-  bookMeta: { alignItems: 'center', marginTop: 2 },
-  bookTitle: { fontFamily: 'Georgia', fontWeight: '600', fontSize: 21, color: INK, letterSpacing: 0.1 },
+  bookMeta: { alignItems: 'center', marginTop: 2, paddingHorizontal: 30 },
+  bookTitle: { fontFamily: 'Georgia', fontWeight: '600', fontSize: 21, color: INK, letterSpacing: 0.1, textAlign: 'center' },
   bookAuthor: { fontFamily: 'Georgia', fontStyle: 'italic', fontSize: 14, color: MUTE, marginTop: 1 },
+  pages: { fontSize: 12.5, fontWeight: '600', color: BROWN, marginTop: 6 },
+  pagesStrong: { color: INK, fontWeight: '800' },
 
   // ── Start button
   startBtn: {
@@ -252,6 +341,12 @@ const ho = StyleSheet.create({
     shadowColor: '#E29A2A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 5,
   },
   startBtnText: { color: WHITE, fontWeight: '800', fontSize: 15.5, letterSpacing: 0.1 },
+
+  // ── Empty hero
+  emptyHero: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40, paddingVertical: 40 },
+  emptyEmoji: { fontSize: 48, marginBottom: 14 },
+  emptyTitle: { fontFamily: 'Georgia', fontSize: 21, fontWeight: '600', color: INK },
+  emptyText: { fontSize: 14.5, fontWeight: '500', color: MUTE, textAlign: 'center', marginTop: 8 },
 
   // ── Stats
   stats: { flexDirection: 'row', gap: 10, paddingHorizontal: 20, paddingTop: 18 },
@@ -278,13 +373,17 @@ const ho = StyleSheet.create({
   shelfRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 14 },
   miniBook: {
     width: 44, height: 64, borderTopLeftRadius: 3, borderBottomLeftRadius: 3, borderTopRightRadius: 5, borderBottomRightRadius: 5,
+    backgroundColor: '#2A2420',
     shadowColor: '#5A3C23', shadowOffset: { width: 2, height: 3 }, shadowOpacity: 0.18, shadowRadius: 7, elevation: 2,
   },
+  miniFallback: { alignItems: 'center', justifyContent: 'center', padding: 4, backgroundColor: '#463353' },
+  miniFallbackText: { fontFamily: 'Georgia', fontWeight: '600', fontSize: 7, lineHeight: 9, letterSpacing: 0.3, color: '#E8D9B5', textAlign: 'center' },
   shelfMore: {
     width: 44, height: 64, borderRadius: 5, backgroundColor: '#F6EFE2',
     alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(139,94,60,0.3)', borderStyle: 'dashed',
   },
   shelfMoreText: { color: BROWN, fontWeight: '800', fontSize: 14 },
+  shelfEmpty: { fontSize: 13, fontWeight: '600', color: MUTE, marginTop: 14 },
 
   // Friends
   friendList: { gap: 12, marginTop: 14 },

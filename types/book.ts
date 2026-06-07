@@ -1,4 +1,5 @@
-export type ReadingStatus = 'reading' | 'read' | 'want_to_read' | 'did_not_finish';
+// 'wishlist' = a book you want but don't own yet (kept off the "do I own this?" check).
+export type ReadingStatus = 'reading' | 'read' | 'want_to_read' | 'did_not_finish' | 'wishlist';
 
 export interface Book {
   id: string;
@@ -18,6 +19,7 @@ export interface ShelfEntry {
   currentPage?: number;
   rating?: number;
   review?: string;
+  notes?: string;        // free-form notes the reader keeps on this book
   startedAt?: string;
   finishedAt?: string;
   addedAt: string;

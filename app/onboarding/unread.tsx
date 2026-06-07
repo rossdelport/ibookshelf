@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useUserStore } from '../../store/userStore';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK    = '#332C24';
@@ -15,10 +16,10 @@ const TOTAL_STEPS = 11;
 const CURRENT_STEP = 0; // 0-indexed; first question in the onboarding flow
 
 const OPTIONS = [
-  { label: '0-5',   emoji: '🌱' },
-  { label: '5-10',  emoji: '📚' },
-  { label: '10-20', emoji: '😅' },
-  { label: '20+',   emoji: '😁' },
+  { label: 'Under 20', emoji: '🌱' },
+  { label: '20–50',    emoji: '📚' },
+  { label: '50–150',   emoji: '📖' },
+  { label: '150+',     emoji: '🏛️' },
 ];
 
 function Chevron() {
@@ -31,6 +32,7 @@ function Chevron() {
 }
 
 export default function UnreadScreen() {
+  const { setLibrarySize } = useUserStore();
   const [selected, setSelected] = useState<number | null>(null); // none preselected
 
   // Fade/slide the Continue button in once a choice is made
@@ -71,9 +73,9 @@ export default function UnreadScreen() {
       {/* ── Question ─────────────────────────────────────── */}
       <View style={ob.questionBlock}>
         <Text style={ob.question}>
-          How many books do you have sitting unread?
+          How big is your home library?
         </Text>
-        <Text style={ob.sub}>No judgment here.</Text>
+        <Text style={ob.sub}>Roughly how many books do you own?</Text>
       </View>
 
       {/* ── Choice rows ──────────────────────────────────── */}
@@ -96,6 +98,9 @@ export default function UnreadScreen() {
         })}
       </View>
 
+      {/* Spacer pushes the footer to the bottom, matching the other screens */}
+      <View style={{ flex: 1 }} />
+
       {/* ── Footer CTA — appears only after a choice is made ─ */}
       <View style={ob.footer}>
         {selected !== null && (
@@ -107,7 +112,10 @@ export default function UnreadScreen() {
           >
             <TouchableOpacity
               style={ob.cta}
-              onPress={() => router.push('/onboarding/mirror')}
+              onPress={() => {
+                if (selected !== null) setLibrarySize(OPTIONS[selected].label);
+                router.push('/onboarding/mirror');
+              }}
               activeOpacity={0.85}
             >
               <Text style={ob.ctaText}>Continue  →</Text>

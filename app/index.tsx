@@ -25,9 +25,9 @@ export default function WelcomeScreen() {
         </View>
 
         <Text style={styles.title}>iBookshelf</Text>
-        <Text style={styles.subtitle}>Your cosy reading companion</Text>
+        <Text style={styles.subtitle}>Your home library, in your pocket</Text>
         <Text style={styles.tagline}>
-          Track every book, keep your streak{'\n'}alive, and find your reading kin.
+          Catalogue every book you own, never buy{'\n'}a duplicate, and keep notes as you read.
         </Text>
       </View>
 
@@ -110,17 +110,23 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     gap: 16,
   },
+  // Matches the onboarding CTA (.ob-cta): amber #E8A838 + brown-amber glow
   button: {
-    backgroundColor: AMBER,
+    backgroundColor: '#E8A838',
     borderRadius: 18,
     paddingVertical: 19,
     alignItems: 'center',
+    shadowColor: '#E29A2A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 5,
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 17,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
   loginText: {
     textAlign: 'center',
