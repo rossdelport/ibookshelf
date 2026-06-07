@@ -11,7 +11,7 @@ const WHITE  = '#FFFFFF';
 // Dark screen background — very dark warm brown (§2 Dark surface family)
 const DARK   = '#1E1408';
 
-const TOTAL_STEPS  = 11;
+const TOTAL_STEPS  = 9;
 const CURRENT_STEP = 5; // segments 0–5 filled (screen 07)
 
 // Fallback appearance if the avatar builder was skipped (mirrors avatar.tsx defaults)

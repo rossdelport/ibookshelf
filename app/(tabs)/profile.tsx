@@ -176,7 +176,7 @@ export default function ProfileScreen() {
             ))}
           </View>
 
-          <TouchableOpacity activeOpacity={0.85}>
+          <TouchableOpacity activeOpacity={0.85} onPress={() => router.push('/paywall')}>
             <LinearGradient colors={['#EFB551', '#E29A2A']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={pf.unlock}>
               <SparkIcon color={WHITE} size={13} />
               <Text style={pf.unlockText}>Unlock all auras with Premium</Text>

@@ -10,7 +10,7 @@ const AMBER = '#E8A838';
 const PAPER = '#FAF8F3';
 const WHITE = '#FFFFFF';
 
-const TOTAL_STEPS  = 11;
+const TOTAL_STEPS  = 9;
 const CURRENT_STEP = 4; // segments 0–4 filled (screen 06)
 
 // ── Sub-components ─────────────────────────────────────────────────────────

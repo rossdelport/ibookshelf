@@ -127,7 +127,7 @@ export default function CircleScreen() {
 
       {/* ── Footer ───────────────────────────────────── */}
       <View style={rc.footer}>
-        <TouchableOpacity style={rc.cta} onPress={() => router.push('/onboarding/paywall')} activeOpacity={0.85}>
+        <TouchableOpacity style={rc.cta} onPress={() => router.replace('/(tabs)')} activeOpacity={0.85}>
           <Text style={rc.ctaText}>Continue  →</Text>
         </TouchableOpacity>
       </View>

@@ -9,7 +9,7 @@ const AMBER  = '#E8A838';
 const PAPER  = '#FAF8F3';
 const WHITE  = '#FFFFFF';
 
-const TOTAL_STEPS  = 11;
+const TOTAL_STEPS  = 9;
 const CURRENT_STEP = 1; // segments 0–1 filled (screen 03)
 
 function Chevron() {

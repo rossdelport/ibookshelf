@@ -12,7 +12,7 @@ const AMBER = '#E8A838';
 const PAPER = '#FAF8F3';
 const WHITE = '#FFFFFF';
 
-const TOTAL_STEPS  = 11;
+const TOTAL_STEPS  = 9;
 const CURRENT_STEP = 3; // 4 segments filled (screen 05)
 
 // ── Avatar data ────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ const PAPER  = '#FAF8F3';
 const WHITE  = '#FFFFFF';
 const BROWN  = 'rgba(139,94,60,0.12)';
 
-const TOTAL_STEPS = 11;
+const TOTAL_STEPS = 9;
 const CURRENT_STEP = 0; // 0-indexed; first question in the onboarding flow
 
 const OPTIONS = [

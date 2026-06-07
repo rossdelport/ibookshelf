@@ -102,22 +102,6 @@ function Stat({ emoji, value, label }: { emoji: string; value: string; label: st
   );
 }
 
-function Friend({ avatar, soul, name, book, pct }: { avatar: any; soul: string; name: string; book: string; pct: string }) {
-  return (
-    <View style={ho.friend}>
-      <View style={ho.friendAv}>
-        <Image source={avatar} style={ho.favatar} resizeMode="cover" />
-        <View style={ho.fsoul}><Text style={ho.fsoulEmoji}>{soul}</Text></View>
-      </View>
-      <View style={ho.friendTxt}>
-        <Text style={ho.friendName}>{name}</Text>
-        <Text style={ho.friendBook}>reading <Text style={ho.friendBookEm}>{book}</Text></Text>
-      </View>
-      <Text style={ho.friendPct}>{pct}</Text>
-    </View>
-  );
-}
-
 // ── Main screen ────────────────────────────────────────────────────────────
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -251,20 +235,6 @@ export default function HomeScreen() {
         )}
       </TouchableOpacity>
 
-      {/* ── Community card ───────────────────────────── */}
-      <View style={ho.bigCard}>
-        <View style={ho.bigCardHead}>
-          <View>
-            <Text style={ho.bigCardTitle}>Community</Text>
-            <Text style={ho.bigCardSub}>2 friends reading now</Text>
-          </View>
-          <ArrowIcon color={MUTE} />
-        </View>
-        <View style={ho.friendList}>
-          <Friend avatar={require('../../assets/images/av_maya.png')} soul="🦉" name="Maya" book="Iron Flame" pct="62%" />
-          <Friend avatar={require('../../assets/images/av_theo.png')} soul="🦌" name="Theo" book="Babel" pct="28%" />
-        </View>
-      </View>
     </ScrollView>
   );
 }

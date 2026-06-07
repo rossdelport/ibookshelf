@@ -3,7 +3,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CameraIcon, CommunityIcon, HomeIcon, ProfileIcon, ShelfIcon } from '../../components/icons';
+import { CameraIcon, HomeIcon, ProfileIcon, ShelfIcon } from '../../components/icons';
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const AMBER = '#E8A838';
@@ -11,12 +11,12 @@ const MUTE  = '#A89A88';
 
 type IconCmp = (p: { color: string; sw?: number }) => React.ReactElement;
 
+// Community is parked (see roadmap) — file kept, just not shown in the tab bar.
 const TABS: { name: string; label: string; Icon: IconCmp }[] = [
-  { name: 'index',     label: 'Home',      Icon: HomeIcon },
-  { name: 'shelf',     label: 'Shelf',     Icon: ShelfIcon },
-  { name: 'scan',      label: 'Scan',      Icon: CameraIcon },
-  { name: 'community', label: 'Community', Icon: CommunityIcon },
-  { name: 'profile',   label: 'Profile',   Icon: ProfileIcon },
+  { name: 'index',   label: 'Home',    Icon: HomeIcon },
+  { name: 'shelf',   label: 'Shelf',   Icon: ShelfIcon },
+  { name: 'scan',    label: 'Scan',    Icon: CameraIcon },
+  { name: 'profile', label: 'Profile', Icon: ProfileIcon },
 ];
 
 // Frosted 5-tab bar (DESIGN.md §5 Tabbar) — dark variant on the camera screen
@@ -63,6 +63,8 @@ export default function TabsLayout() {
       {TABS.map((t) => (
         <Tabs.Screen key={t.name} name={t.name} />
       ))}
+      {/* Parked: keep the screen file but exclude it from the tab bar/navigator */}
+      <Tabs.Screen name="community" options={{ href: null }} />
     </Tabs>
   );
 }

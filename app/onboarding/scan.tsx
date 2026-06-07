@@ -15,7 +15,7 @@ const PAPER   = '#FAF8F3';
 const WHITE   = '#FFFFFF';
 const GREEN   = '#5BA66E';
 
-const TOTAL_STEPS  = 11;
+const TOTAL_STEPS  = 9;
 const CURRENT_STEP = 7; // segments 0–7 filled (screen 09)
 
 // 'scanning' → camera live, waiting for a barcode
@@ -147,6 +147,8 @@ export default function ScanScreen() {
             <CameraView
               style={StyleSheet.absoluteFill}
               facing="back"
+              // Power the camera down once a barcode is caught; back on for a re-scan.
+              active={scanState === 'scanning'}
               barcodeScannerSettings={{ barcodeTypes: ['ean13'] }}
               onBarcodeScanned={scanState === 'scanning' ? handleBarcode : undefined}
             />

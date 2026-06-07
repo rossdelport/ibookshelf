@@ -113,6 +113,8 @@ export default function ScanScreen() {
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={flash}
+          // Camera runs only while aiming; powers down after a scan, back on for "Scan again".
+          active={scanning}
           barcodeScannerSettings={{ barcodeTypes: ['ean13'] }}
           onBarcodeScanned={scanning ? handleBarcode : undefined}
         />

@@ -11,7 +11,7 @@ const AMBER = '#E8A838';
 const PAPER = '#FAF8F3';
 const WHITE = '#FFFFFF';
 
-const TOTAL_STEPS  = 11;
+const TOTAL_STEPS  = 9;
 const CURRENT_STEP = 8; // segments 0–8 filled (screen 10)
 
 const STAR_D = 'M12 2.2l2.95 5.98 6.6.96-4.77 4.65 1.13 6.57L12 17.98 6.09 20.34l1.13-6.57L2.45 9.12l6.6-.96L12 2.2z';
@@ -92,10 +92,10 @@ export default function ReviewScreen() {
 
       {/* ── Footer ───────────────────────────────────── */}
       <View style={rv.footer}>
-        <TouchableOpacity style={rv.cta} onPress={() => router.push('/onboarding/circle')} activeOpacity={0.85}>
+        <TouchableOpacity style={rv.cta} onPress={() => router.replace('/(tabs)')} activeOpacity={0.85}>
           <Text style={rv.ctaText}>Leave a 5-star review  →</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => router.push('/onboarding/circle')} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => router.replace('/(tabs)')} activeOpacity={0.7}>
           <Text style={rv.tinyLink}>Not now</Text>
         </TouchableOpacity>
       </View>

@@ -81,8 +81,6 @@ export default function RootLayout() {
         <Stack.Screen name="onboarding/signup" />
         <Stack.Screen name="onboarding/scan" />
         <Stack.Screen name="onboarding/review" />
-        <Stack.Screen name="onboarding/circle" />
-        <Stack.Screen name="onboarding/paywall" />
         <Stack.Screen
           name="onboarding/soul-detail"
           options={{
@@ -94,6 +92,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="book/[id]" />
+        <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );

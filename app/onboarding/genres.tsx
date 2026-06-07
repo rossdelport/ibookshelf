@@ -10,7 +10,7 @@ const AMBER  = '#E8A838';
 const PAPER  = '#FAF8F3';
 const WHITE  = '#FFFFFF';
 
-const TOTAL_STEPS  = 11;
+const TOTAL_STEPS  = 9;
 const CURRENT_STEP = 2; // segments 0–2 filled (screen 04)
 
 const GENRES = [
