@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { BookCover } from '../../components/BookCover';
 import { PlusIcon, SearchIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
+import { useUserStore } from '../../store/userStore';
 import type { ReadingStatus, ShelfBook } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
@@ -15,12 +16,13 @@ const BROWN = '#8B5E3C';
 const AMBER = '#E8A838';
 const WHITE = '#FFFFFF';
 
-const FILTERS = ['All', 'Reading', 'Finished', 'Want to read'] as const;
 const STATUS_FOR: Record<string, ReadingStatus> = {
   Reading: 'reading',
   Finished: 'read',
   'Want to read': 'want_to_read',
 };
+
+type Filter = { kind: 'all' | 'status' | 'shelf'; value: string };
 
 function chunk<T>(arr: T[], n: number): T[][] {
   const out: T[][] = [];
@@ -52,10 +54,11 @@ function Plank() {
 
 export default function ShelfScreen() {
   const insets = useSafeAreaInsets();
-  const [filter, setFilter] = useState<string>('All');
+  const [filter, setFilter] = useState<Filter>({ kind: 'all', value: 'All' });
 
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
+  const shelfDefs = useUserStore((s) => s.profile.shelves);
 
   // Owned library = everything on the shelf except wishlist items.
   const owned = useMemo(
@@ -71,7 +74,22 @@ export default function ShelfScreen() {
   const total = owned.length;
   const readCount = owned.filter((b) => b.shelf.status === 'read').length;
 
-  const visible = filter === 'All' ? owned : owned.filter((b) => b.shelf.status === STATUS_FOR[filter]);
+  const chips = useMemo(
+    () => [
+      { kind: 'all' as const, value: 'All', label: 'All' },
+      { kind: 'status' as const, value: 'Reading', label: 'Reading' },
+      { kind: 'status' as const, value: 'Finished', label: 'Finished' },
+      { kind: 'status' as const, value: 'Want to read', label: 'Want to read' },
+      ...shelfDefs.map((s) => ({ kind: 'shelf' as const, value: s.name, label: `${s.emoji}  ${s.name}` })),
+    ],
+    [shelfDefs],
+  );
+
+  const visible = useMemo(() => {
+    if (filter.kind === 'all') return owned;
+    if (filter.kind === 'status') return owned.filter((b) => b.shelf.status === STATUS_FOR[filter.value]);
+    return owned.filter((b) => (b.shelf.shelves ?? []).includes(filter.value));
+  }, [owned, filter]);
 
   return (
     <LinearGradient colors={['#FAF8F3', '#F3ECDF']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={sl.fill}>
@@ -117,14 +135,23 @@ export default function ShelfScreen() {
           {/* ── Filter chips ─────────────────────────── */}
           <View style={sl.filtersWrap}>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sl.filters}>
-              {FILTERS.map((f) => {
-                const active = f === filter;
+              {chips.map((c) => {
+                const active = filter.kind === c.kind && filter.value === c.value;
                 return (
-                  <TouchableOpacity key={f} style={[sl.chip, active && sl.chipActive]} onPress={() => setFilter(f)} activeOpacity={0.8}>
-                    <Text style={[sl.chipText, active && sl.chipTextActive]}>{f}</Text>
+                  <TouchableOpacity
+                    key={`${c.kind}:${c.value}`}
+                    style={[sl.chip, active && sl.chipActive]}
+                    onPress={() => setFilter({ kind: c.kind, value: c.value })}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[sl.chipText, active && sl.chipTextActive]}>{c.label}</Text>
                   </TouchableOpacity>
                 );
               })}
+              {/* Create a new shelf */}
+              <TouchableOpacity style={sl.newChip} onPress={() => router.push('/new-shelf')} activeOpacity={0.8}>
+                <Text style={sl.newChipText}>＋ Shelf</Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
 
@@ -205,6 +232,11 @@ const sl = StyleSheet.create({
   chipActive: { backgroundColor: INK, borderColor: INK },
   chipText: { fontSize: 13, fontWeight: '700', color: BROWN },
   chipTextActive: { color: WHITE },
+  newChip: {
+    paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999,
+    borderWidth: 1, borderColor: 'rgba(139,94,60,0.3)', borderStyle: 'dashed',
+  },
+  newChipText: { fontSize: 13, fontWeight: '800', color: BROWN },
 
   // ── Shelves
   shelves: { flex: 1 },

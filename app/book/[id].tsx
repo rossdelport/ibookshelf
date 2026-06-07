@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { BookCover } from '../../components/BookCover';
 import { useBookshelfStore } from '../../store/bookshelfStore';
+import { useUserStore } from '../../store/userStore';
 import type { ReadingStatus } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
@@ -39,6 +40,8 @@ export default function BookDetailScreen() {
   const entry = useBookshelfStore((s) => s.shelf[id]);
   const updateShelfEntry = useBookshelfStore((s) => s.updateShelfEntry);
   const removeFromShelf = useBookshelfStore((s) => s.removeFromShelf);
+  const toggleBookShelf = useBookshelfStore((s) => s.toggleBookShelf);
+  const shelfDefs = useUserStore((s) => s.profile.shelves);
 
   const [notes, setNotes] = useState(entry?.notes ?? '');
   const [pageStr, setPageStr] = useState(entry?.currentPage != null ? String(entry.currentPage) : '');
@@ -130,6 +133,32 @@ export default function BookDetailScreen() {
                 </TouchableOpacity>
               );
             })}
+          </View>
+
+          {/* ── Shelves / collections ──────────────────── */}
+          <Text style={d.sectionLabel}>SHELVES</Text>
+          <View style={d.statusRow}>
+            {shelfDefs.map((sh) => {
+              const on = (entry.shelves ?? []).includes(sh.name);
+              return (
+                <TouchableOpacity
+                  key={sh.name}
+                  style={[d.statusChip, on && d.statusChipActive]}
+                  onPress={() => toggleBookShelf(id, sh.name)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={d.statusEmoji}>{sh.emoji}</Text>
+                  <Text style={[d.statusText, on && d.statusTextActive]}>{sh.name}</Text>
+                </TouchableOpacity>
+              );
+            })}
+            <TouchableOpacity
+              style={d.newShelfChip}
+              onPress={() => router.push({ pathname: '/new-shelf', params: { addBook: id } })}
+              activeOpacity={0.8}
+            >
+              <Text style={d.newShelfText}>＋ New shelf</Text>
+            </TouchableOpacity>
           </View>
 
           {/* ── Reading progress (only while reading) ──── */}
@@ -226,6 +255,13 @@ const d = StyleSheet.create({
   statusEmoji: { fontSize: 15 },
   statusText: { fontSize: 14, fontWeight: '700', color: INK },
   statusTextActive: { color: WHITE },
+
+  // New-shelf chip (dashed)
+  newShelfChip: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16,
+    borderWidth: 1, borderColor: 'rgba(139,94,60,0.3)', borderStyle: 'dashed',
+  },
+  newShelfText: { fontSize: 14, fontWeight: '800', color: BROWN },
 
   // ── Progress
   progressCard: {

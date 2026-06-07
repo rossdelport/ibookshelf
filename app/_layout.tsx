@@ -21,6 +21,7 @@ async function handleSignedIn(userId: string) {
     favouriteGenres: rp?.favourite_genres && rp.favourite_genres.length ? rp.favourite_genres : local.favouriteGenres,
     soulAnimal: rp?.soul_animal ?? local.soulAnimal,
     avatar: (rp?.avatar as typeof local.avatar) ?? local.avatar,
+    shelves: rp?.shelves && rp.shelves.length ? rp.shelves : local.shelves,
   };
   useUserStore.getState().hydrateProfile(mergedProfile);
 
@@ -94,6 +95,7 @@ export default function RootLayout() {
         <Stack.Screen name="book/[id]" />
         <Stack.Screen name="search" />
         <Stack.Screen name="add" />
+        <Stack.Screen name="new-shelf" options={{ presentation: 'modal' }} />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
       </Stack>
     </>

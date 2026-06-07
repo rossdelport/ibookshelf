@@ -10,6 +10,7 @@ interface BookshelfState {
   addToShelf: (book: Book, status: ReadingStatus) => void;
   removeFromShelf: (bookId: string) => void;
   updateShelfEntry: (bookId: string, updates: Partial<ShelfEntry>) => void;
+  toggleBookShelf: (bookId: string, shelfName: string) => void;
   getShelfBooks: (status?: ReadingStatus) => ShelfBook[];
   getShelfEntry: (bookId: string) => ShelfEntry | undefined;
   getShelfBook: (bookId: string) => ShelfBook | undefined;
@@ -51,6 +52,19 @@ export const useBookshelfStore = create<BookshelfState>()(
         const existing = get().shelf[bookId];
         if (!existing) return;
         const merged = { ...existing, ...updates };
+        set((state) => ({ shelf: { ...state.shelf, [bookId]: merged } }));
+        const book = get().books[bookId];
+        if (book) pushBook(book, merged);
+      },
+
+      toggleBookShelf: (bookId, shelfName) => {
+        const existing = get().shelf[bookId];
+        if (!existing) return;
+        const current = existing.shelves ?? [];
+        const shelves = current.includes(shelfName)
+          ? current.filter((n) => n !== shelfName)
+          : [...current, shelfName];
+        const merged = { ...existing, shelves };
         set((state) => ({ shelf: { ...state.shelf, [bookId]: merged } }));
         const book = get().books[bookId];
         if (book) pushBook(book, merged);

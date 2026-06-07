@@ -2,12 +2,14 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { pushProfile } from '../lib/sync';
+import type { ShelfDef } from '../types/book';
 
 const EMPTY_PROFILE: UserProfile = {
   librarySize: null,
   favouriteGenres: [],
   soulAnimal: null,
   avatar: null,
+  shelves: [],
 };
 
 // Holds onboarding + profile data locally until Supabase sync is wired up.
@@ -26,6 +28,7 @@ export interface UserProfile {
   favouriteGenres: string[];       // genre labels selected in onboarding
   soulAnimal: string | null;       // e.g. 'Fox'
   avatar: AvatarConfig | null;     // saved appearance from the avatar builder
+  shelves: ShelfDef[];             // custom shelves / collections the user made
 }
 
 interface UserState {
@@ -35,6 +38,8 @@ interface UserState {
   toggleGenre: (genre: string) => void;
   setSoulAnimal: (animal: string) => void;
   setAvatar: (avatar: AvatarConfig) => void;
+  addShelf: (name: string, emoji: string) => void;
+  removeShelf: (name: string) => void;
   hydrateProfile: (profile: UserProfile) => void;
   reset: () => void;
 }
@@ -70,6 +75,21 @@ export const useUserStore = create<UserState>()(
 
       setAvatar: (avatar) => {
         set((s) => ({ profile: { ...s.profile, avatar } }));
+        pushProfile(get().profile);
+      },
+
+      addShelf: (name, emoji) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        const current = get().profile.shelves;
+        // Case-insensitive de-dupe so "Tom" and "tom" don't both appear.
+        if (current.some((s) => s.name.toLowerCase() === trimmed.toLowerCase())) return;
+        set((s) => ({ profile: { ...s.profile, shelves: [...s.profile.shelves, { name: trimmed, emoji }] } }));
+        pushProfile(get().profile);
+      },
+
+      removeShelf: (name) => {
+        set((s) => ({ profile: { ...s.profile, shelves: s.profile.shelves.filter((sh) => sh.name !== name) } }));
         pushProfile(get().profile);
       },
 

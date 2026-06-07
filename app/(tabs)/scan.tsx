@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { CheckIcon, CloseIcon, FlashIcon, HeartIcon, ShelfIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
+import { useUserStore } from '../../store/userStore';
 import { lookupBookByIsbn } from '../../lib/bookLookup';
 import type { Book } from '../../types/book';
 
@@ -31,6 +32,7 @@ type Mode = 'aim' | 'identifying' | 'result' | 'owned' | 'shelf' | 'wishlist' | 
 export default function ScanScreen() {
   const insets = useSafeAreaInsets();
   const { addToShelf, getShelfEntry } = useBookshelfStore();
+  const shelfDefs = useUserStore((s) => s.profile.shelves);
   const [permission, requestPermission] = useCameraPermissions();
 
   const [mode, setMode] = useState<Mode>('aim');
@@ -100,6 +102,15 @@ export default function ScanScreen() {
     if (book) addToShelf(book, status);
     setMode(status === 'wishlist' ? 'wishlist' : 'shelf');
   };
+
+  // Which custom shelf(es) an already-owned book is filed on (e.g. "Mum & Dad").
+  const ownedShelves = book ? getShelfEntry(book.id)?.shelves ?? [] : [];
+  const ownedShelfLabel = ownedShelves
+    .map((n) => {
+      const def = shelfDefs.find((sh) => sh.name === n);
+      return def ? `${def.emoji} ${def.name}` : n;
+    })
+    .join(', ');
 
   const lineY = sweep.interpolate({ inputRange: [0, 1], outputRange: [RETICLE_H * 0.04, RETICLE_H * 0.96] });
   const spinDeg = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
@@ -212,7 +223,11 @@ export default function ScanScreen() {
             <>
               <View style={[sc.tag, sc.tagOwned]}><Text style={[sc.tagText, sc.tagTextOwned]}>Already in your library</Text></View>
               <BookRow book={book} large />
-              <Text style={sc.ownedNote}>You already own this — no need to buy it again. 🎉</Text>
+              <Text style={sc.ownedNote}>
+                {ownedShelfLabel
+                  ? `You already own this — it's on your ${ownedShelfLabel} shelf. No need to buy it again. 🎉`
+                  : 'You already own this — no need to buy it again. 🎉'}
+              </Text>
               <View style={sc.actions}>
                 <TouchableOpacity style={[sc.act, sc.actWish]} onPress={reset} activeOpacity={0.85}>
                   <Text style={sc.actWishText}>Scan again</Text>

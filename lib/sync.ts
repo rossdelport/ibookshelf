@@ -1,5 +1,5 @@
 import { supabase } from './supabase';
-import type { Book, ShelfEntry } from '../types/book';
+import type { Book, ShelfEntry, ShelfDef } from '../types/book';
 
 // Sync layer between the local zustand stores and Supabase.
 // Kept free of store imports so there's no circular dependency: the stores
@@ -28,6 +28,7 @@ export interface LibraryRow {
   rating: number | null;
   review: string | null;
   notes: string | null;
+  shelves: string[] | null;
   started_at: string | null;
   finished_at: string | null;
   added_at: string;
@@ -40,6 +41,7 @@ export interface ProfileRow {
   favourite_genres: string[] | null;
   soul_animal: string | null;
   avatar: unknown | null;
+  shelves: ShelfDef[] | null;
 }
 
 interface ProfileInput {
@@ -47,6 +49,7 @@ interface ProfileInput {
   favouriteGenres: string[];
   soulAnimal: string | null;
   avatar: unknown;
+  shelves: ShelfDef[];
 }
 
 function rowFromLocal(userId: string, book: Book, entry: ShelfEntry): LibraryRow {
@@ -65,6 +68,7 @@ function rowFromLocal(userId: string, book: Book, entry: ShelfEntry): LibraryRow
     rating: entry.rating ?? null,
     review: entry.review ?? null,
     notes: entry.notes ?? null,
+    shelves: entry.shelves ?? [],
     started_at: entry.startedAt ?? null,
     finished_at: entry.finishedAt ?? null,
     added_at: entry.addedAt,
@@ -92,6 +96,7 @@ export function localFromRow(row: LibraryRow): { book: Book; entry: ShelfEntry }
       rating: row.rating ?? undefined,
       review: row.review ?? undefined,
       notes: row.notes ?? undefined,
+      shelves: row.shelves ?? undefined,
       startedAt: row.started_at ?? undefined,
       finishedAt: row.finished_at ?? undefined,
       addedAt: row.added_at,
@@ -139,6 +144,7 @@ export async function pushProfile(profile: ProfileInput) {
       favourite_genres: profile.favouriteGenres,
       soul_animal: profile.soulAnimal,
       avatar: profile.avatar ?? null,
+      shelves: profile.shelves,
     },
     { onConflict: 'id' },
   );
