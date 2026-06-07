@@ -35,7 +35,8 @@
         {
           "cameraPermission": "iBookshelf uses your camera to scan book barcodes and add them to your library."
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

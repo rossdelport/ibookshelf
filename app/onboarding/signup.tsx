@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, T
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
+import { signInWithGoogle } from '../../lib/googleAuth';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -70,11 +71,21 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const emailValid = email.includes('@') && email.includes('.');
   const passwordValid = password.length >= 6;
-  const disabled = loading || !emailValid || !passwordValid;
+  const disabled = loading || googleLoading || !emailValid || !passwordValid;
+
+  const onGoogle = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    const res = await signInWithGoogle();
+    setGoogleLoading(false);
+    if (res.ok) router.push('/onboarding/scan');
+    else if (res.error) setError(res.error);
+  };
 
   const createAccount = async () => {
     setLoading(true);
@@ -138,9 +149,15 @@ export default function SignUpScreen() {
             </TouchableOpacity>
 
             {/* Google — §5 ghost variant: white bg, hairline border */}
-            <TouchableOpacity style={su.googleBtn} activeOpacity={0.85} onPress={() => social('Google')}>
-              <GoogleIcon />
-              <Text style={su.googleBtnText}>Continue with Google</Text>
+            <TouchableOpacity style={su.googleBtn} activeOpacity={0.85} onPress={onGoogle} disabled={googleLoading}>
+              {googleLoading ? (
+                <ActivityIndicator color={INK} />
+              ) : (
+                <>
+                  <GoogleIcon />
+                  <Text style={su.googleBtnText}>Continue with Google</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
 

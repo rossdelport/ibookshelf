@@ -3,6 +3,7 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, Te
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import { signInWithGoogle } from '../lib/googleAuth';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -24,9 +25,19 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const valid = /\S+@\S+\.\S+/.test(email) && password.length >= 6;
+
+  const onGoogle = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    const res = await signInWithGoogle();
+    setGoogleLoading(false);
+    if (res.ok) router.replace('/(tabs)');
+    else if (res.error) setError(res.error);
+  };
 
   const signIn = async () => {
     setLoading(true);
@@ -56,6 +67,24 @@ export default function LoginScreen() {
         <View style={lg.body}>
           <Text style={lg.title}>Welcome back.</Text>
           <Text style={lg.sub}>Sign in to sync your library across your devices.</Text>
+
+          {/* Google */}
+          <TouchableOpacity style={lg.googleBtn} activeOpacity={0.85} onPress={onGoogle} disabled={googleLoading}>
+            {googleLoading ? (
+              <ActivityIndicator color={INK} />
+            ) : (
+              <>
+                <View style={lg.googleG}><Text style={lg.googleGText}>G</Text></View>
+                <Text style={lg.googleBtnText}>Continue with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <View style={lg.orRow}>
+            <View style={lg.orLine} />
+            <Text style={lg.orLabel}>or</Text>
+            <View style={lg.orLine} />
+          </View>
 
           <View style={lg.field}>
             <TextInput
@@ -125,6 +154,21 @@ const lg = StyleSheet.create({
     shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
   },
   input: { fontSize: 15, fontWeight: '500', color: INK, padding: 0 },
+
+  // Google button (§5 ghost variant)
+  googleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
+    backgroundColor: WHITE, borderRadius: 16, borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.15)',
+    paddingVertical: 17, marginTop: 4,
+    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
+  },
+  googleG: { width: 22, height: 22, borderRadius: 2, backgroundColor: '#4285F4', alignItems: 'center', justifyContent: 'center' },
+  googleGText: { color: WHITE, fontSize: 14, fontWeight: '800' },
+  googleBtnText: { color: INK, fontSize: 16, fontWeight: '700' },
+
+  orRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  orLine: { flex: 1, height: 0.5, backgroundColor: 'rgba(139,94,60,0.18)' },
+  orLabel: { fontSize: 13, fontWeight: '600', color: MUTE },
 
   error: { fontSize: 13, fontWeight: '600', color: '#E0506B', marginTop: 2 },
 
