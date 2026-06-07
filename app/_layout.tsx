@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { useUserStore } from '../store/userStore';
 import { useBookshelfStore } from '../store/bookshelfStore';
-import { setSyncUser, fetchRemoteState, pushProfile, pushBook } from '../lib/sync';
+import { setSyncUser, fetchRemoteState, pushProfile, pushBook, initSync } from '../lib/sync';
 
 // On sign-in, reconcile local (offline/onboarding) state with the cloud:
 // remote values win when present; anything that only exists locally is pushed up.
@@ -51,6 +51,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     let mounted = true;
+    // Load the persisted sync queue + wire connectivity/foreground flush triggers.
+    initSync();
     supabase.auth.getSession().then(({ data }) => {
       if (!mounted) return;
       setSession(data.session);
@@ -96,6 +98,7 @@ export default function RootLayout() {
         <Stack.Screen name="search" />
         <Stack.Screen name="add" />
         <Stack.Screen name="new-shelf" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="change-cover" options={{ presentation: 'modal' }} />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
       </Stack>
     </>

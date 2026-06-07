@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { BookCover } from '../../components/BookCover';
+import { SyncStatus } from '../../components/SyncStatus';
 import { PlusIcon, SearchIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
@@ -111,11 +112,14 @@ export default function ShelfScreen() {
 
       {/* ── Heading ──────────────────────────────────── */}
       <View style={sl.head}>
-        <Text style={sl.h1}>My Library</Text>
-        <Text style={sl.sub}>
-          <Text style={sl.subStrong}>{total} book{total === 1 ? '' : 's'}</Text>
-          {readCount > 0 ? ` · ${readCount} read` : ' · start scanning'}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={sl.h1}>My Library</Text>
+          <Text style={sl.sub}>
+            <Text style={sl.subStrong}>{total} book{total === 1 ? '' : 's'}</Text>
+            {readCount > 0 ? ` · ${readCount} read` : ' · start scanning'}
+          </Text>
+        </View>
+        <SyncStatus />
       </View>
 
       {total === 0 ? (
@@ -216,7 +220,7 @@ const sl = StyleSheet.create({
   },
 
   // ── Heading
-  head: { paddingHorizontal: 22, paddingTop: 14 },
+  head: { flexDirection: 'row', alignItems: 'flex-end', gap: 12, paddingHorizontal: 22, paddingTop: 14 },
   h1: { fontSize: 27, fontWeight: '800', letterSpacing: -0.5, color: INK },
   sub: { marginTop: 4, fontSize: 13.5, fontWeight: '600', color: MUTE },
   subStrong: { color: BROWN, fontWeight: '700' },

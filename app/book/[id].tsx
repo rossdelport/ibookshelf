@@ -108,9 +108,16 @@ export default function BookDetailScreen() {
         >
           {/* ── Hero ───────────────────────────────────── */}
           <View style={d.hero}>
-            <View style={d.coverWrap}>
+            <TouchableOpacity
+              style={d.coverWrap}
+              activeOpacity={0.85}
+              onPress={() => router.push({ pathname: '/change-cover', params: { id } })}
+            >
               <BookCover title={book.title} author={book.author} coverUrl={book.coverUrl} pct={entry.status === 'reading' ? pct : undefined} />
-            </View>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push({ pathname: '/change-cover', params: { id } })} activeOpacity={0.7}>
+              <Text style={d.changeCover}>Change cover</Text>
+            </TouchableOpacity>
             <Text style={d.title}>{book.title}</Text>
             <Text style={d.author}>{book.author}</Text>
             {!!meta && <Text style={d.meta}>{meta}</Text>}
@@ -229,7 +236,8 @@ const d = StyleSheet.create({
 
   // ── Hero
   hero: { alignItems: 'center', marginTop: 8 },
-  coverWrap: { width: 120, marginBottom: 18 },
+  coverWrap: { width: 120, marginBottom: 10 },
+  changeCover: { fontSize: 12.5, fontWeight: '800', color: BROWN, marginBottom: 10 },
   title: { fontFamily: 'Georgia', fontSize: 23, fontWeight: '600', color: INK, textAlign: 'center', lineHeight: 28 },
   author: { fontSize: 14, fontWeight: '700', color: BROWN, marginTop: 6 },
   meta: { fontSize: 12.5, fontWeight: '600', color: MUTE, marginTop: 6 },

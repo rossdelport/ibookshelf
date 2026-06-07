@@ -16,7 +16,41 @@ const API_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY;
 export async function lookupBookByIsbn(isbn: string): Promise<Book | null> {
   const cleaned = isbn.replace(/[^0-9Xx]/g, '');
   if (!cleaned) return null;
-  return (await fromGoogle(cleaned)) ?? (await fromOpenLibrary(cleaned));
+  const book = (await fromGoogle(cleaned)) ?? (await fromOpenLibrary(cleaned));
+  // If we got the book but no cover, try Open Library's cover-by-ISBN.
+  if (book && !book.coverUrl && book.isbn) {
+    const ol = openLibraryCoverUrl(book.isbn);
+    if (await coverExists(ol)) book.coverUrl = ol;
+  }
+  return book;
+}
+
+// ── Cover helpers ───────────────────────────────────────────────────────────
+// Prefer the largest Google image; force https (RN blocks http) and drop the
+// page-curl flag for a clean, sharp cover.
+function bestCover(links?: {
+  smallThumbnail?: string; thumbnail?: string; small?: string; medium?: string; large?: string; extraLarge?: string;
+}): string | undefined {
+  const raw =
+    links?.extraLarge ?? links?.large ?? links?.medium ?? links?.thumbnail ?? links?.small ?? links?.smallThumbnail;
+  return raw?.replace(/^http:/, 'https:').replace('&edge=curl', '');
+}
+
+// Open Library's deterministic cover-by-ISBN (large). No API call to build it.
+export function openLibraryCoverUrl(isbn: string): string {
+  return `https://covers.openlibrary.org/b/isbn/${encodeURIComponent(isbn)}-L.jpg`;
+}
+
+// True only if the URL resolves to a real image (OL returns 404 with
+// ?default=false when it has no art for that ISBN).
+export async function coverExists(url: string): Promise<boolean> {
+  try {
+    const u = url.includes('covers.openlibrary.org') ? `${url}?default=false` : url;
+    const res = await fetch(u);
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 // Free-text search (title/author) via Google Books — for adding books you
@@ -56,7 +90,9 @@ interface GoogleVolume {
     categories?: string[];
     description?: string;
     industryIdentifiers?: { type?: string; identifier?: string }[];
-    imageLinks?: { smallThumbnail?: string; thumbnail?: string };
+    imageLinks?: {
+      smallThumbnail?: string; thumbnail?: string; small?: string; medium?: string; large?: string; extraLarge?: string;
+    };
   };
 }
 
@@ -72,8 +108,7 @@ function bookFromGoogleItem(item: GoogleVolume): Book | null {
   const id = isbn ?? (item.id ? `gb_${item.id}` : undefined);
   if (!id) return null;
 
-  const raw = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail;
-  const coverUrl = raw?.replace(/^http:/, 'https:').replace('&edge=curl', '');
+  const coverUrl = bestCover(info.imageLinks);
 
   return {
     id,
@@ -98,10 +133,7 @@ async function fromGoogle(isbn: string): Promise<Book | null> {
     const info = json.items?.[0]?.volumeInfo;
     if (!info?.title) return null;
 
-    // Google serves covers over http with a page-curl flag — force https
-    // (RN blocks http) and drop the curl for a clean cover.
-    const raw = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail;
-    const coverUrl = raw?.replace(/^http:/, 'https:').replace('&edge=curl', '');
+    const coverUrl = bestCover(info.imageLinks);
 
     return {
       id: isbn,
