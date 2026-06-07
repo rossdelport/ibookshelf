@@ -82,8 +82,10 @@ export default function ShelfScreen() {
           <View style={sl.soul}><Text style={sl.soulEmoji}>🦊</Text></View>
         </View>
         <View style={sl.topActions}>
-          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7}><SearchIcon color={INK} /></TouchableOpacity>
-          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.navigate('/(tabs)/scan')}>
+          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')}>
+            <SearchIcon color={INK} />
+          </TouchableOpacity>
+          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.push('/add')}>
             <PlusIcon color={INK} />
           </TouchableOpacity>
         </View>

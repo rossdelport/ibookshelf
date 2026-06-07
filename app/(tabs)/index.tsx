@@ -155,7 +155,7 @@ export default function HomeScreen() {
             <BellIcon color={INK} />
             <View style={ho.bellDot} />
           </TouchableOpacity>
-          <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')}>
             <SearchIcon color={INK} />
           </TouchableOpacity>
         </View>

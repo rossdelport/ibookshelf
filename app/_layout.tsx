@@ -92,6 +92,8 @@ export default function RootLayout() {
         />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="book/[id]" />
+        <Stack.Screen name="search" />
+        <Stack.Screen name="add" />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
       </Stack>
     </>

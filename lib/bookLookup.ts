@@ -19,8 +19,34 @@ export async function lookupBookByIsbn(isbn: string): Promise<Book | null> {
   return (await fromGoogle(cleaned)) ?? (await fromOpenLibrary(cleaned));
 }
 
+// Free-text search (title/author) via Google Books — for adding books you
+// can't or won't scan. Returns up to ~12 results, de-duped. Never throws.
+export async function searchBooks(query: string): Promise<Book[]> {
+  const q = query.trim();
+  if (q.length < 2) return [];
+  try {
+    const keyParam = API_KEY ? `&key=${API_KEY}` : '';
+    const res = await fetch(`${GOOGLE}?q=${encodeURIComponent(q)}&maxResults=12&printType=books${keyParam}`);
+    if (!res.ok) return [];
+    const json: { items?: GoogleVolume[] } = await res.json();
+    const out: Book[] = [];
+    const seen = new Set<string>();
+    for (const item of json.items ?? []) {
+      const b = bookFromGoogleItem(item);
+      if (b && !seen.has(b.id)) {
+        seen.add(b.id);
+        out.push(b);
+      }
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
+
 // ── Google Books ───────────────────────────────────────────────────────────
 interface GoogleVolume {
+  id?: string;
   volumeInfo?: {
     title?: string;
     subtitle?: string;
@@ -29,7 +55,36 @@ interface GoogleVolume {
     pageCount?: number;
     categories?: string[];
     description?: string;
+    industryIdentifiers?: { type?: string; identifier?: string }[];
     imageLinks?: { smallThumbnail?: string; thumbnail?: string };
+  };
+}
+
+// Map a full Google volume (search result) → Book. Uses its ISBN as the id when
+// present, else a stable `gb_<volumeId>` so no-ISBN books still get a unique key.
+function bookFromGoogleItem(item: GoogleVolume): Book | null {
+  const info = item.volumeInfo;
+  if (!info?.title) return null;
+  const ids = info.industryIdentifiers ?? [];
+  const isbn =
+    ids.find((i) => i.type === 'ISBN_13')?.identifier ??
+    ids.find((i) => i.type === 'ISBN_10')?.identifier;
+  const id = isbn ?? (item.id ? `gb_${item.id}` : undefined);
+  if (!id) return null;
+
+  const raw = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail;
+  const coverUrl = raw?.replace(/^http:/, 'https:').replace('&edge=curl', '');
+
+  return {
+    id,
+    isbn,
+    title: info.subtitle ? `${info.title}: ${info.subtitle}` : info.title,
+    author: info.authors?.join(', ') ?? 'Unknown author',
+    coverUrl,
+    pageCount: info.pageCount,
+    publishedYear: yearFrom(info.publishedDate),
+    genres: info.categories,
+    description: info.description,
   };
 }
 
