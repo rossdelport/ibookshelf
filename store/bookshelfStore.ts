@@ -11,6 +11,8 @@ interface BookshelfState {
   removeFromShelf: (bookId: string) => void;
   updateShelfEntry: (bookId: string, updates: Partial<ShelfEntry>) => void;
   toggleBookShelf: (bookId: string, shelfName: string) => void;
+  renameShelfMembership: (oldName: string, newName: string) => void;
+  removeShelfMembership: (name: string) => void;
   setBookCover: (bookId: string, coverUrl: string | undefined) => void;
   updateBook: (bookId: string, updates: Partial<Book>) => void;
   getShelfBooks: (status?: ReadingStatus) => ShelfBook[];
@@ -70,6 +72,45 @@ export const useBookshelfStore = create<BookshelfState>()(
         set((state) => ({ shelf: { ...state.shelf, [bookId]: merged } }));
         const book = get().books[bookId];
         if (book) pushBook(book, merged);
+      },
+
+      // Cascade a shelf rename across every book filed on it, so membership
+      // never points at a stale name. Pushes each changed book to the cloud.
+      renameShelfMembership: (oldName, newName) => {
+        const shelf = get().shelf;
+        const next: Record<string, ShelfEntry> = {};
+        const changed: string[] = [];
+        for (const [id, entry] of Object.entries(shelf)) {
+          if ((entry.shelves ?? []).includes(oldName)) {
+            next[id] = { ...entry, shelves: entry.shelves!.map((n) => (n === oldName ? newName : n)) };
+            changed.push(id);
+          } else {
+            next[id] = entry;
+          }
+        }
+        if (!changed.length) return;
+        set({ shelf: next });
+        const books = get().books;
+        changed.forEach((id) => books[id] && pushBook(books[id], next[id]));
+      },
+
+      // Drop a deleted shelf from every book that was filed on it.
+      removeShelfMembership: (name) => {
+        const shelf = get().shelf;
+        const next: Record<string, ShelfEntry> = {};
+        const changed: string[] = [];
+        for (const [id, entry] of Object.entries(shelf)) {
+          if ((entry.shelves ?? []).includes(name)) {
+            next[id] = { ...entry, shelves: entry.shelves!.filter((n) => n !== name) };
+            changed.push(id);
+          } else {
+            next[id] = entry;
+          }
+        }
+        if (!changed.length) return;
+        set({ shelf: next });
+        const books = get().books;
+        changed.forEach((id) => books[id] && pushBook(books[id], next[id]));
       },
 
       setBookCover: (bookId, coverUrl) => {

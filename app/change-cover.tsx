@@ -5,6 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useBookshelfStore } from '../store/bookshelfStore';
 import { searchBooks, openLibraryCoverUrl, coverExists } from '../lib/bookLookup';
+import { uploadCover, deleteCover } from '../lib/coverStorage';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -24,6 +25,7 @@ export default function ChangeCoverScreen() {
 
   const [candidates, setCandidates] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   const current = book?.coverUrl;
 
@@ -67,10 +69,19 @@ export default function ChangeCoverScreen() {
     const res = fromCamera
       ? await ImagePicker.launchCameraAsync(COVER_OPTS)
       : await ImagePicker.launchImageLibraryAsync(COVER_OPTS);
-    if (!res.canceled) {
-      setBookCover(id, res.assets[0].uri);
-      router.back();
-    }
+    if (res.canceled) return;
+    // Upload to Storage so the cover persists across devices; falls back to the
+    // local uri when signed out or if the upload fails (local-first).
+    setUploading(true);
+    const url = await uploadCover(res.assets[0].uri, id);
+    setBookCover(id, url);
+    router.back();
+  };
+
+  const removeCover = () => {
+    setBookCover(id, undefined);
+    deleteCover(id); // best-effort cloud cleanup
+    router.back();
   };
 
   return (
@@ -89,10 +100,10 @@ export default function ChangeCoverScreen() {
         <ScrollView contentContainerStyle={cc.content} showsVerticalScrollIndicator={false}>
           {/* Photo of their own copy — best for special editions */}
           <View style={cc.photoRow}>
-            <TouchableOpacity style={cc.photoBtn} onPress={() => photo(true)} activeOpacity={0.85}>
+            <TouchableOpacity style={cc.photoBtn} onPress={() => photo(true)} disabled={uploading} activeOpacity={0.85}>
               <Text style={cc.photoBtnText}>📷  Take photo</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={cc.photoBtn} onPress={() => photo(false)} activeOpacity={0.85}>
+            <TouchableOpacity style={cc.photoBtn} onPress={() => photo(false)} disabled={uploading} activeOpacity={0.85}>
               <Text style={cc.photoBtnText}>🖼  Choose photo</Text>
             </TouchableOpacity>
           </View>
@@ -118,11 +129,18 @@ export default function ChangeCoverScreen() {
           )}
 
           {current && (
-            <TouchableOpacity style={cc.remove} onPress={() => { setBookCover(id, undefined); router.back(); }} activeOpacity={0.7}>
+            <TouchableOpacity style={cc.remove} onPress={removeCover} activeOpacity={0.7}>
               <Text style={cc.removeText}>Remove cover</Text>
             </TouchableOpacity>
           )}
         </ScrollView>
+      )}
+
+      {uploading && (
+        <View style={cc.overlay}>
+          <ActivityIndicator color={AMBER} size="large" />
+          <Text style={cc.overlayText}>Saving cover…</Text>
+        </View>
       )}
     </SafeAreaView>
   );
@@ -161,4 +179,10 @@ const cc = StyleSheet.create({
 
   remove: { alignSelf: 'center', marginTop: 26, paddingVertical: 10, paddingHorizontal: 20 },
   removeText: { fontSize: 14, fontWeight: '700', color: RED },
+
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(250,248,243,0.86)', alignItems: 'center', justifyContent: 'center', gap: 12,
+  },
+  overlayText: { fontSize: 14.5, fontWeight: '700', color: BROWN },
 });

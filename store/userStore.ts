@@ -38,7 +38,9 @@ interface UserState {
   toggleGenre: (genre: string) => void;
   setSoulAnimal: (animal: string) => void;
   setAvatar: (avatar: AvatarConfig) => void;
-  addShelf: (name: string, emoji: string) => void;
+  addShelf: (name: string, emoji: string, color?: string) => void;
+  updateShelf: (oldName: string, def: ShelfDef) => void;
+  moveShelf: (name: string, dir: 'up' | 'down') => void;
   removeShelf: (name: string) => void;
   hydrateProfile: (profile: UserProfile) => void;
   reset: () => void;
@@ -78,13 +80,48 @@ export const useUserStore = create<UserState>()(
         pushProfile(get().profile);
       },
 
-      addShelf: (name, emoji) => {
+      addShelf: (name, emoji, color) => {
         const trimmed = name.trim();
         if (!trimmed) return;
         const current = get().profile.shelves;
         // Case-insensitive de-dupe so "Tom" and "tom" don't both appear.
         if (current.some((s) => s.name.toLowerCase() === trimmed.toLowerCase())) return;
-        set((s) => ({ profile: { ...s.profile, shelves: [...s.profile.shelves, { name: trimmed, emoji }] } }));
+        set((s) => ({ profile: { ...s.profile, shelves: [...s.profile.shelves, { name: trimmed, emoji, color }] } }));
+        pushProfile(get().profile);
+      },
+
+      // Edit a shelf's name/emoji/colour in place (keeps its position). Blocks a
+      // rename that would collide with a *different* existing shelf. The caller
+      // is responsible for cascading a rename across book membership (see
+      // bookshelfStore.renameShelfMembership).
+      updateShelf: (oldName, def) => {
+        const newName = def.name.trim();
+        if (!newName) return;
+        const current = get().profile.shelves;
+        const collision = current.some(
+          (s) => s.name !== oldName && s.name.toLowerCase() === newName.toLowerCase(),
+        );
+        if (collision) return;
+        set((s) => ({
+          profile: {
+            ...s.profile,
+            shelves: s.profile.shelves.map((sh) =>
+              sh.name === oldName ? { name: newName, emoji: def.emoji, color: def.color } : sh,
+            ),
+          },
+        }));
+        pushProfile(get().profile);
+      },
+
+      // Reorder a shelf by swapping it with its neighbour.
+      moveShelf: (name, dir) => {
+        const shelves = [...get().profile.shelves];
+        const i = shelves.findIndex((s) => s.name === name);
+        if (i === -1) return;
+        const j = dir === 'up' ? i - 1 : i + 1;
+        if (j < 0 || j >= shelves.length) return;
+        [shelves[i], shelves[j]] = [shelves[j], shelves[i]];
+        set((s) => ({ profile: { ...s.profile, shelves } }));
         pushProfile(get().profile);
       },
 

@@ -30,6 +30,7 @@ export interface ShelfEntry {
 export interface ShelfDef {
   name: string;
   emoji: string;
+  color?: string;   // optional accent colour; undefined = the default ink chip
 }
 
 export interface ShelfBook extends Book {

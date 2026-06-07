@@ -7,6 +7,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { BookCover } from '../../components/BookCover';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
+import { shelfChipColor } from '../../constants/shelfColors';
 import type { ReadingStatus } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
@@ -183,10 +184,11 @@ export default function BookDetailScreen() {
           <View style={d.statusRow}>
             {shelfDefs.map((sh) => {
               const on = (entry.shelves ?? []).includes(sh.name);
+              const tint = shelfChipColor(sh.color);
               return (
                 <TouchableOpacity
                   key={sh.name}
-                  style={[d.statusChip, on && d.statusChipActive]}
+                  style={[d.statusChip, on && d.statusChipActive, on ? { backgroundColor: tint, borderColor: tint, shadowColor: tint } : null]}
                   onPress={() => toggleBookShelf(id, sh.name)}
                   activeOpacity={0.8}
                 >

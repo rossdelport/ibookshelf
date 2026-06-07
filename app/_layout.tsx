@@ -98,6 +98,8 @@ export default function RootLayout() {
         <Stack.Screen name="search" />
         <Stack.Screen name="add" />
         <Stack.Screen name="new-shelf" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="edit-shelf" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="manage-shelves" options={{ presentation: 'modal' }} />
         <Stack.Screen name="change-cover" options={{ presentation: 'modal' }} />
         <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
       </Stack>

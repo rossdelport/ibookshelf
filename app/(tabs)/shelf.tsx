@@ -8,6 +8,7 @@ import { SyncStatus } from '../../components/SyncStatus';
 import { PlusIcon, SearchIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
+import { shelfChipColor } from '../../constants/shelfColors';
 import type { ReadingStatus, ShelfBook } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
@@ -93,11 +94,11 @@ export default function ShelfScreen() {
 
   const chips = useMemo(
     () => [
-      { kind: 'all' as const, value: 'All', label: 'All' },
-      { kind: 'status' as const, value: 'Reading', label: 'Reading' },
-      { kind: 'status' as const, value: 'Finished', label: 'Finished' },
-      { kind: 'status' as const, value: 'Want to read', label: 'Want to read' },
-      ...shelfDefs.map((s) => ({ kind: 'shelf' as const, value: s.name, label: `${s.emoji}  ${s.name}` })),
+      { kind: 'all' as const, value: 'All', label: 'All', color: undefined as string | undefined },
+      { kind: 'status' as const, value: 'Reading', label: 'Reading', color: undefined as string | undefined },
+      { kind: 'status' as const, value: 'Finished', label: 'Finished', color: undefined as string | undefined },
+      { kind: 'status' as const, value: 'Want to read', label: 'Want to read', color: undefined as string | undefined },
+      ...shelfDefs.map((s) => ({ kind: 'shelf' as const, value: s.name, label: `${s.emoji}  ${s.name}`, color: shelfChipColor(s.color) })),
     ],
     [shelfDefs],
   );
@@ -169,7 +170,7 @@ export default function ShelfScreen() {
                 return (
                   <TouchableOpacity
                     key={`${c.kind}:${c.value}`}
-                    style={[sl.chip, active && sl.chipActive]}
+                    style={[sl.chip, active && sl.chipActive, active && c.color ? { backgroundColor: c.color, borderColor: c.color } : null]}
                     onPress={() => setFilter({ kind: c.kind, value: c.value })}
                     activeOpacity={0.8}
                   >
@@ -181,6 +182,12 @@ export default function ShelfScreen() {
               <TouchableOpacity style={sl.newChip} onPress={() => router.push('/new-shelf')} activeOpacity={0.8}>
                 <Text style={sl.newChipText}>＋ Shelf</Text>
               </TouchableOpacity>
+              {/* Manage existing shelves (rename / recolour / reorder / delete) */}
+              {shelfDefs.length > 0 && (
+                <TouchableOpacity style={sl.newChip} onPress={() => router.push('/manage-shelves')} activeOpacity={0.8}>
+                  <Text style={sl.newChipText}>⋯ Manage</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
 
