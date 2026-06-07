@@ -41,10 +41,14 @@ export default function BookDetailScreen() {
   const updateShelfEntry = useBookshelfStore((s) => s.updateShelfEntry);
   const removeFromShelf = useBookshelfStore((s) => s.removeFromShelf);
   const toggleBookShelf = useBookshelfStore((s) => s.toggleBookShelf);
+  const updateBook = useBookshelfStore((s) => s.updateBook);
   const shelfDefs = useUserStore((s) => s.profile.shelves);
 
   const [notes, setNotes] = useState(entry?.notes ?? '');
   const [pageStr, setPageStr] = useState(entry?.currentPage != null ? String(entry.currentPage) : '');
+  const [editing, setEditing] = useState(false);
+  const [titleStr, setTitleStr] = useState(book?.title ?? '');
+  const [authorStr, setAuthorStr] = useState(book?.author ?? '');
 
   if (!book || !entry) {
     return (
@@ -86,6 +90,21 @@ export default function BookDetailScreen() {
     router.back();
   };
 
+  // Tap a star to set the rating; tap the same one again to clear it.
+  const setRating = (r: number) => updateShelfEntry(id, { rating: entry.rating === r ? undefined : r });
+
+  const startEdit = () => {
+    setTitleStr(book.title);
+    setAuthorStr(book.author);
+    setEditing(true);
+  };
+  const saveEdit = () => {
+    const t = titleStr.trim();
+    if (!t) return;
+    updateBook(id, { title: t, author: authorStr.trim() || 'Unknown author' });
+    setEditing(false);
+  };
+
   const pct = book.pageCount ? Math.min((entry.currentPage ?? 0) / book.pageCount, 1) : 0;
   const meta = [book.publishedYear, book.pageCount ? `${book.pageCount} pp` : null, book.genres?.[0]]
     .filter(Boolean)
@@ -118,9 +137,26 @@ export default function BookDetailScreen() {
             <TouchableOpacity onPress={() => router.push({ pathname: '/change-cover', params: { id } })} activeOpacity={0.7}>
               <Text style={d.changeCover}>Change cover</Text>
             </TouchableOpacity>
-            <Text style={d.title}>{book.title}</Text>
-            <Text style={d.author}>{book.author}</Text>
-            {!!meta && <Text style={d.meta}>{meta}</Text>}
+
+            {editing ? (
+              <View style={d.editBox}>
+                <TextInput style={d.editTitle} value={titleStr} onChangeText={setTitleStr} placeholder="Title" placeholderTextColor={MUTE} multiline />
+                <TextInput style={d.editAuthor} value={authorStr} onChangeText={setAuthorStr} placeholder="Author" placeholderTextColor={MUTE} />
+                <View style={d.editActions}>
+                  <TouchableOpacity onPress={() => setEditing(false)} activeOpacity={0.7}><Text style={d.editCancel}>Cancel</Text></TouchableOpacity>
+                  <TouchableOpacity onPress={saveEdit} activeOpacity={0.7}><Text style={d.editSave}>Save</Text></TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <>
+                <Text style={d.title}>{book.title}</Text>
+                <Text style={d.author}>{book.author}</Text>
+                {!!meta && <Text style={d.meta}>{meta}</Text>}
+                <TouchableOpacity onPress={startEdit} activeOpacity={0.7}>
+                  <Text style={d.changeCover}>Edit details</Text>
+                </TouchableOpacity>
+              </>
+            )}
           </View>
 
           {/* ── Reading status ─────────────────────────── */}
@@ -195,6 +231,21 @@ export default function BookDetailScreen() {
             </>
           )}
 
+          {/* ── Rating ─────────────────────────────────── */}
+          <Text style={d.sectionLabel}>RATING</Text>
+          <View style={d.starsRow}>
+            {[1, 2, 3, 4, 5].map((r) => (
+              <TouchableOpacity key={r} onPress={() => setRating(r)} activeOpacity={0.7} style={d.starHit}>
+                <Text style={[d.star, (entry.rating ?? 0) >= r ? d.starOn : d.starOff]}>★</Text>
+              </TouchableOpacity>
+            ))}
+            {entry.rating ? (
+              <TouchableOpacity onPress={() => updateShelfEntry(id, { rating: undefined })} activeOpacity={0.7} style={d.clearHit}>
+                <Text style={d.clearRating}>Clear</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
           {/* ── Notes ──────────────────────────────────── */}
           <Text style={d.sectionLabel}>MY NOTES</Text>
           <TextInput
@@ -241,6 +292,31 @@ const d = StyleSheet.create({
   title: { fontFamily: 'Georgia', fontSize: 23, fontWeight: '600', color: INK, textAlign: 'center', lineHeight: 28 },
   author: { fontSize: 14, fontWeight: '700', color: BROWN, marginTop: 6 },
   meta: { fontSize: 12.5, fontWeight: '600', color: MUTE, marginTop: 6 },
+
+  // ── Edit details (title/author)
+  editBox: { alignSelf: 'stretch', gap: 10, marginTop: 4 },
+  editTitle: {
+    fontFamily: 'Georgia', fontSize: 20, fontWeight: '600', color: INK, textAlign: 'center',
+    backgroundColor: WHITE, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
+  },
+  editAuthor: {
+    fontSize: 15, fontWeight: '600', color: INK, textAlign: 'center',
+    backgroundColor: WHITE, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
+    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
+  },
+  editActions: { flexDirection: 'row', justifyContent: 'center', gap: 28, marginTop: 2 },
+  editCancel: { fontSize: 14, fontWeight: '800', color: MUTE },
+  editSave: { fontSize: 14, fontWeight: '800', color: '#C0851E' },
+
+  // ── Rating
+  starsRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  starHit: { paddingVertical: 2, paddingHorizontal: 2 },
+  star: { fontSize: 30 },
+  starOn: { color: AMBER },
+  starOff: { color: 'rgba(139,94,60,0.18)' },
+  clearHit: { marginLeft: 10, paddingVertical: 6, paddingHorizontal: 6 },
+  clearRating: { fontSize: 13, fontWeight: '700', color: MUTE },
 
   // ── Section label (§3 caps)
   sectionLabel: {

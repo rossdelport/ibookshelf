@@ -212,8 +212,8 @@ export default function HomeScreen() {
       {/* ── Quick stats ──────────────────────────────── */}
       <View style={ho.stats}>
         <Stat emoji="📚" value={String(owned.length)} label="In Library" />
+        <Stat emoji="📖" value={String(reading.length)} label="Reading" />
         <Stat emoji="✅" value={String(readCount)} label="Books Read" />
-        <Stat emoji="🔥" value="1" label="Day Streak" />
       </View>
 
       {/* ── My Shelf card ────────────────────────────── */}

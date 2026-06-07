@@ -6,7 +6,9 @@ import { AvatarFace } from '../../components/AvatarFace';
 import { GearIcon, LockIcon, ShareNodesIcon, SparkIcon } from '../../components/icons';
 import { ANIMALS } from '../../constants/animals';
 import { useUserStore } from '../../store/userStore';
+import { useBookshelfStore } from '../../store/bookshelfStore';
 import { supabase } from '../../lib/supabase';
+import { useMemo } from 'react';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -70,6 +72,21 @@ export default function ProfileScreen() {
   const soul = ANIMALS.find((a) => a.name === profile.soulAnimal) ?? ANIMALS.find((a) => a.name === 'Fox')!;
   const traits = TRAITS[soul.name] ?? TRAITS.Fox;
 
+  // Real reading stats from the library.
+  const books = useBookshelfStore((s) => s.books);
+  const shelf = useBookshelfStore((s) => s.shelf);
+  const { ownedCount, readCount, pagesValue, pagesUnit } = useMemo(() => {
+    const owned = Object.values(shelf).filter((e) => e.status !== 'wishlist');
+    const read = owned.filter((e) => e.status === 'read');
+    const pages = read.reduce((sum, e) => sum + (books[e.bookId]?.pageCount ?? 0), 0);
+    return {
+      ownedCount: owned.length,
+      readCount: read.length,
+      pagesValue: pages >= 1000 ? (pages / 1000).toFixed(1) : String(pages),
+      pagesUnit: pages >= 1000 ? 'k' : '',
+    };
+  }, [books, shelf]);
+
   return (
     <LinearGradient colors={['#FAF8F3', '#F3ECDF']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={pf.fill}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}>
@@ -109,7 +126,7 @@ export default function ProfileScreen() {
 
           {/* Counts */}
           <View style={pf.counts}>
-            {[['128', 'Following'], ['94', 'Followers'], ['12', 'Books']].map(([v, l], i) => (
+            {[['128', 'Following'], ['94', 'Followers'], [String(ownedCount), 'Books']].map(([v, l], i) => (
               <View key={l} style={[pf.count, i > 0 && pf.countDivider]}>
                 <Text style={pf.countV}>{v}</Text>
                 <Text style={pf.countL}>{l}</Text>
@@ -121,7 +138,7 @@ export default function ProfileScreen() {
         {/* ── Reading Life ─────────────────────────────── */}
         <SectionCard title="Reading Life">
           <View style={pf.stats}>
-            {[['12', '', 'Books Read'], ['14', ' 🔥', 'Day Streak'], ['8.4', 'k', 'Pages']].map(([v, unit, l], i) => (
+            {[[String(readCount), '', 'Books Read'], [String(ownedCount), '', 'In Library'], [pagesValue, pagesUnit, 'Pages read']].map(([v, unit, l], i) => (
               <View key={l} style={[pf.stat, i > 0 && pf.statDivider]}>
                 <Text style={pf.statV}>{v}<Text style={pf.statUnit}>{unit}</Text></Text>
                 <Text style={pf.statL}>{l}</Text>

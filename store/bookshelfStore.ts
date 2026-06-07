@@ -12,6 +12,7 @@ interface BookshelfState {
   updateShelfEntry: (bookId: string, updates: Partial<ShelfEntry>) => void;
   toggleBookShelf: (bookId: string, shelfName: string) => void;
   setBookCover: (bookId: string, coverUrl: string | undefined) => void;
+  updateBook: (bookId: string, updates: Partial<Book>) => void;
   getShelfBooks: (status?: ReadingStatus) => ShelfBook[];
   getShelfEntry: (bookId: string) => ShelfEntry | undefined;
   getShelfBook: (bookId: string) => ShelfBook | undefined;
@@ -75,6 +76,15 @@ export const useBookshelfStore = create<BookshelfState>()(
         const book = get().books[bookId];
         if (!book) return;
         const updated = { ...book, coverUrl };
+        set((state) => ({ books: { ...state.books, [bookId]: updated } }));
+        const entry = get().shelf[bookId];
+        if (entry) pushBook(updated, entry);
+      },
+
+      updateBook: (bookId, updates) => {
+        const book = get().books[bookId];
+        if (!book) return;
+        const updated = { ...book, ...updates };
         set((state) => ({ books: { ...state.books, [bookId]: updated } }));
         const entry = get().shelf[bookId];
         if (entry) pushBook(updated, entry);

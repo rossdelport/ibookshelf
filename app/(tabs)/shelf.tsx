@@ -23,6 +23,20 @@ const STATUS_FOR: Record<string, ReadingStatus> = {
   'Want to read': 'want_to_read',
 };
 
+const STATUS_DISPLAY: Record<ReadingStatus, string> = {
+  reading: 'Reading',
+  read: 'Finished',
+  want_to_read: 'To read',
+  did_not_finish: 'DNF',
+  wishlist: 'Wishlist',
+};
+
+const SORT_LABEL: Record<'recent' | 'title' | 'author', string> = {
+  recent: 'Recently added',
+  title: 'Title A–Z',
+  author: 'Author',
+};
+
 type Filter = { kind: 'all' | 'status' | 'shelf'; value: string };
 
 function chunk<T>(arr: T[], n: number): T[][] {
@@ -56,6 +70,8 @@ function Plank() {
 export default function ShelfScreen() {
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<Filter>({ kind: 'all', value: 'All' });
+  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [sort, setSort] = useState<'recent' | 'title' | 'author'>('recent');
 
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
@@ -91,6 +107,15 @@ export default function ShelfScreen() {
     if (filter.kind === 'status') return owned.filter((b) => b.shelf.status === STATUS_FOR[filter.value]);
     return owned.filter((b) => (b.shelf.shelves ?? []).includes(filter.value));
   }, [owned, filter]);
+
+  const sorted = useMemo(() => {
+    const arr = [...visible];
+    if (sort === 'title') arr.sort((a, b) => a.title.localeCompare(b.title));
+    else if (sort === 'author') arr.sort((a, b) => (a.author ?? '').localeCompare(b.author ?? ''));
+    return arr; // 'recent' keeps the addedAt-desc order from `owned`
+  }, [visible, sort]);
+
+  const cycleSort = () => setSort((s) => (s === 'recent' ? 'title' : s === 'title' ? 'author' : 'recent'));
 
   return (
     <LinearGradient colors={['#FAF8F3', '#F3ECDF']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={sl.fill}>
@@ -159,16 +184,31 @@ export default function ShelfScreen() {
             </ScrollView>
           </View>
 
-          {/* ── Wooden shelves, 3 across ─────────────── */}
+          {/* ── View + sort controls ─────────────────── */}
+          <View style={sl.controlRow}>
+            <TouchableOpacity style={sl.sortBtn} onPress={cycleSort} activeOpacity={0.7}>
+              <Text style={sl.sortText}>↕  {SORT_LABEL[sort]}</Text>
+            </TouchableOpacity>
+            <View style={sl.viewToggle}>
+              <TouchableOpacity style={[sl.viewBtn, view === 'grid' && sl.viewBtnOn]} onPress={() => setView('grid')} activeOpacity={0.8}>
+                <Text style={[sl.viewGlyph, view === 'grid' && sl.viewGlyphOn]}>▦</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[sl.viewBtn, view === 'list' && sl.viewBtnOn]} onPress={() => setView('list')} activeOpacity={0.8}>
+                <Text style={[sl.viewGlyph, view === 'list' && sl.viewGlyphOn]}>☰</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* ── Books: grid = wooden shelves, list = rows ─ */}
           <ScrollView
             style={sl.shelves}
-            contentContainerStyle={[sl.shelvesContent, { paddingBottom: insets.bottom + 96 }]}
+            contentContainerStyle={[view === 'grid' ? sl.shelvesContent : sl.listContent, { paddingBottom: insets.bottom + 96 }]}
             showsVerticalScrollIndicator={false}
           >
-            {visible.length === 0 ? (
+            {sorted.length === 0 ? (
               <Text style={sl.filterEmpty}>No books here yet.</Text>
-            ) : (
-              chunk(visible, 3).map((row, i) => (
+            ) : view === 'grid' ? (
+              chunk(sorted, 3).map((row, i) => (
                 <View key={i} style={sl.row}>
                   <View style={sl.books}>
                     {row.map((b) => (
@@ -186,6 +226,24 @@ export default function ShelfScreen() {
                   </View>
                   <Plank />
                 </View>
+              ))
+            ) : (
+              sorted.map((b) => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={sl.listRow}
+                  activeOpacity={0.8}
+                  onPress={() => router.push({ pathname: '/book/[id]', params: { id: b.id } })}
+                >
+                  <View style={sl.listCover}>
+                    <BookCover title={b.title} author={b.author} coverUrl={b.coverUrl} />
+                  </View>
+                  <View style={sl.listText}>
+                    <Text style={sl.listTitle} numberOfLines={1}>{b.title}</Text>
+                    <Text style={sl.listAuthor} numberOfLines={1}>{b.author}</Text>
+                  </View>
+                  <Text style={sl.listStatus}>{STATUS_DISPLAY[b.shelf.status]}</Text>
+                </TouchableOpacity>
               ))
             )}
           </ScrollView>
@@ -241,6 +299,25 @@ const sl = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(139,94,60,0.3)', borderStyle: 'dashed',
   },
   newChipText: { fontSize: 13, fontWeight: '800', color: BROWN },
+
+  // ── View + sort controls
+  controlRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 22, paddingTop: 2, paddingBottom: 10 },
+  sortBtn: { paddingVertical: 6, paddingRight: 10 },
+  sortText: { fontSize: 12.5, fontWeight: '800', color: BROWN },
+  viewToggle: { flexDirection: 'row', backgroundColor: '#EFE6D6', borderRadius: 999, padding: 3, gap: 2 },
+  viewBtn: { width: 34, height: 28, borderRadius: 999, alignItems: 'center', justifyContent: 'center' },
+  viewBtnOn: { backgroundColor: INK },
+  viewGlyph: { fontSize: 15, color: MUTE, fontWeight: '700' },
+  viewGlyphOn: { color: WHITE },
+
+  // ── List view
+  listContent: { paddingHorizontal: 22, paddingTop: 6 },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 9, borderBottomWidth: 0.5, borderBottomColor: 'rgba(139,94,60,0.10)' },
+  listCover: { width: 38 },
+  listText: { flex: 1, minWidth: 0 },
+  listTitle: { fontSize: 15, fontWeight: '800', color: INK },
+  listAuthor: { fontSize: 12.5, fontWeight: '600', color: MUTE, fontFamily: 'Georgia', fontStyle: 'italic', marginTop: 1 },
+  listStatus: { fontSize: 11.5, fontWeight: '800', color: BROWN },
 
   // ── Shelves
   shelves: { flex: 1 },
