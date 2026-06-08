@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { Accelerometer } from 'expo-sensors';
 import { ArrowIcon, BellIcon, PlayIcon, SearchIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { forceSync } from '../../lib/sync';
@@ -17,49 +16,40 @@ const BROWN = '#8B5E3C';
 const AMBER = '#E8A838';
 const WHITE = '#FFFFFF';
 const CREAM = '#FBF1DC';
+const GREEN = '#5BA66E';
 
 function progressOf(b: ShelfBook): number {
   if (!b.pageCount) return 0;
   return Math.min((b.shelf.currentPage ?? 0) / b.pageCount, 1);
 }
 
-// ── 3D hero book that tilts with the phone (parallax via accelerometer) ─────
-function HeroBook({ book, pct }: { book: ShelfBook; pct: number }) {
-  // roll = left/right tilt, pitch = forward/back tilt, both re-centred to
-  // however the phone is being held when the screen mounts.
-  const roll = useRef(new Animated.Value(0)).current;
-  const pitch = useRef(new Animated.Value(0)).current;
-  const base = useRef<{ x: number; y: number } | null>(null);
+type HeroBadge = { text: string; tone: 'progress' | 'finished' | 'status' };
 
-  useEffect(() => {
-    let sub: ReturnType<typeof Accelerometer.addListener> | undefined;
-    let active = true;
-    (async () => {
-      const ok = await Accelerometer.isAvailableAsync().catch(() => false);
-      if (!ok || !active) return;
-      Accelerometer.setUpdateInterval(60);
-      sub = Accelerometer.addListener(({ x, y }) => {
-        if (!base.current) base.current = { x, y };
-        const clamp = (v: number) => Math.max(-1, Math.min(1, v));
-        const dx = clamp((x - base.current.x) * 1.6);
-        const dy = clamp((y - base.current.y) * 1.6);
-        Animated.timing(roll, { toValue: dx, duration: 90, useNativeDriver: true }).start();
-        Animated.timing(pitch, { toValue: dy, duration: 90, useNativeDriver: true }).start();
-      });
-    })();
-    return () => { active = false; sub?.remove(); };
-  }, [roll, pitch]);
+// A status-aware badge for the hero book — a real % only when there's genuine
+// reading progress, otherwise a plain status label (never a misleading 0%).
+function heroBadge(b: ShelfBook): HeroBadge | null {
+  switch (b.shelf.status) {
+    case 'reading':
+      return b.pageCount && (b.shelf.currentPage ?? 0) > 0
+        ? { text: `${Math.round(progressOf(b) * 100)}%`, tone: 'progress' }
+        : { text: 'Reading', tone: 'status' };
+    case 'read':
+      return { text: 'Finished', tone: 'finished' };
+    case 'want_to_read':
+      return { text: 'Want to read', tone: 'status' };
+    case 'did_not_finish':
+      return { text: 'Didn’t finish', tone: 'status' };
+    default:
+      return null;
+  }
+}
 
-  // Neutral pose ≈ the original -13°/4° 3D look; tilt nudges around it.
-  const rotateY = roll.interpolate({ inputRange: [-1, 1], outputRange: ['-33deg', '9deg'] });
-  const rotateX = pitch.interpolate({ inputRange: [-1, 1], outputRange: ['16deg', '-8deg'] });
-
+// ── 3D hero book (static — reliable, no accelerometer jitter) ───────────────
+function HeroBook({ book, badge }: { book: ShelfBook; badge: HeroBadge | null }) {
   return (
     <View style={ho.bookZone}>
       <View style={ho.bookShadow} />
-      <Animated.View
-        style={[ho.book3d, { transform: [{ perspective: 1400 }, { rotateY }, { rotateX }, { rotateZ: '-1deg' }] }]}
-      >
+      <View style={[ho.book3d, { transform: [{ perspective: 1400 }, { rotateY: '-12deg' }, { rotateX: '4deg' }, { rotateZ: '-1deg' }] }]}>
         {book.coverUrl ? (
           <ExpoImage source={{ uri: book.coverUrl }} style={ho.bookCover} contentFit="cover" transition={220} cachePolicy="memory-disk" />
         ) : (
@@ -73,12 +63,16 @@ function HeroBook({ book, pct }: { book: ShelfBook; pct: number }) {
         <View style={ho.bookPages} />
         {/* Sheen */}
         <LinearGradient colors={['rgba(255,255,255,0.30)', 'rgba(255,255,255,0)']} start={{ x: 0, y: 0 }} end={{ x: 0.5, y: 0.45 }} style={ho.bookSheen} />
-      </Animated.View>
-
-      {/* Progress pill — high-contrast against the cover */}
-      <View style={ho.pill}>
-        <Text style={ho.pillText}>{Math.round(pct * 100)}%</Text>
       </View>
+
+      {/* Status badge — % when reading with progress, else a plain label */}
+      {badge && (
+        <View style={[ho.pill, badge.tone === 'finished' && ho.pillFinished, badge.tone === 'status' && ho.pillStatus]}>
+          <Text style={[ho.pillText, badge.tone === 'finished' && ho.pillTextFinished, badge.tone === 'status' && ho.pillTextStatus]}>
+            {badge.text}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -109,6 +103,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
+  const updateShelfEntry = useBookshelfStore((s) => s.updateShelfEntry);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(() => {
@@ -140,12 +135,33 @@ export default function HomeScreen() {
         ),
     [owned],
   );
-  const current = reading[0] ?? recent[0] ?? null;
+  const toRead = useMemo(
+    () =>
+      owned
+        .filter((b) => b.shelf.status === 'want_to_read')
+        .sort((a, b) => new Date(b.shelf.addedAt).getTime() - new Date(a.shelf.addedAt).getTime()),
+    [owned],
+  );
+  // Hero = what you're reading, else the next thing to start, else most recent.
+  const current = reading[0] ?? toRead[0] ?? recent[0] ?? null;
+  const isReading = current?.shelf.status === 'reading';
+  const badge = current ? heroBadge(current) : null;
 
   const readCount = owned.filter((b) => b.shelf.status === 'read').length;
   const miniBooks = recent.slice(0, 4);
   const more = owned.length - miniBooks.length;
-  const pct = current ? progressOf(current) : 0;
+
+  const openBook = (id: string) => router.push({ pathname: '/book/[id]', params: { id } });
+  // The hero CTA: continue a current read, or start (mark reading) anything else.
+  const onHeroCta = () => {
+    if (!current) return;
+    if (!isReading) {
+      const now = new Date().toISOString();
+      updateShelfEntry(current.id, { status: 'reading', startedAt: current.shelf.startedAt ?? now });
+    }
+    openBook(current.id);
+  };
+  const ctaLabel = isReading ? 'Continue reading' : current?.shelf.status === 'read' ? 'Read it again' : 'Start reading';
 
   return (
     <ScrollView
@@ -181,30 +197,24 @@ export default function HomeScreen() {
         <>
           {/* ── Hero ─────────────────────────────────── */}
           <View style={ho.hero}>
-            <HeroBook book={current} pct={pct} />
+            <HeroBook book={current} badge={badge} />
           </View>
 
-          <TouchableOpacity
-            style={ho.bookMeta}
-            activeOpacity={0.7}
-            onPress={() => router.push({ pathname: '/book/[id]', params: { id: current.id } })}
-          >
+          <TouchableOpacity style={ho.bookMeta} activeOpacity={0.7} onPress={() => openBook(current.id)}>
             <Text style={ho.bookTitle} numberOfLines={2}>{current.title}</Text>
             <Text style={ho.bookAuthor}>{current.author}</Text>
-            {!!current.pageCount && (
+            {isReading && !!current.pageCount ? (
               <Text style={ho.pages}>
                 <Text style={ho.pagesStrong}>{current.shelf.currentPage ?? 0}</Text> / {current.pageCount} pages
               </Text>
-            )}
+            ) : !!current.pageCount ? (
+              <Text style={ho.pages}>{current.pageCount} pages</Text>
+            ) : null}
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={ho.startBtn}
-            activeOpacity={0.85}
-            onPress={() => router.push({ pathname: '/book/[id]', params: { id: current.id } })}
-          >
+          <TouchableOpacity style={ho.startBtn} activeOpacity={0.85} onPress={onHeroCta}>
             <PlayIcon color={WHITE} />
-            <Text style={ho.startBtnText}>Start Reading Session</Text>
+            <Text style={ho.startBtnText}>{ctaLabel}</Text>
           </TouchableOpacity>
         </>
       ) : (
@@ -306,6 +316,10 @@ const ho = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 10, elevation: 5,
   },
   pillText: { color: CREAM, fontWeight: '800', fontSize: 14, letterSpacing: -0.2 },
+  pillFinished: { backgroundColor: GREEN, borderColor: '#EAF6ED' },
+  pillStatus: { backgroundColor: CREAM, borderColor: WHITE },
+  pillTextFinished: { color: WHITE },
+  pillTextStatus: { color: '#B07A1E' },
 
   // ── Book meta
   bookMeta: { alignItems: 'center', marginTop: 2, paddingHorizontal: 30 },
