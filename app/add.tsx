@@ -5,6 +5,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
 import { BookCover } from '../components/BookCover';
 import { CameraIcon, SearchIcon } from '../components/icons';
 import { useBookshelfStore } from '../store/bookshelfStore';
@@ -90,6 +91,7 @@ export default function AddBookScreen() {
   };
 
   const addBook = (b: Book) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     addToShelf(b, 'want_to_read');
     setAdded((prev) => ({ ...prev, [b.id]: true }));
   };
@@ -97,6 +99,7 @@ export default function AddBookScreen() {
   const addManual = () => {
     const title = mTitle.trim();
     if (!title) return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const book: Book = {
       id: `manual_${Date.now()}`,
       title,

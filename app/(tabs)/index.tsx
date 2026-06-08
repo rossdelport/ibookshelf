@@ -4,7 +4,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { ArrowIcon, BellIcon, PlayIcon, SearchIcon } from '../../components/icons';
+import { ArrowIcon, PlayIcon, SearchIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { forceSync } from '../../lib/sync';
 import type { ShelfBook } from '../../types/book';
@@ -177,10 +177,6 @@ export default function HomeScreen() {
           <View style={ho.soul}><Text style={ho.soulEmoji}>🦊</Text></View>
         </View>
         <View style={ho.topActions}>
-          <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Notifications">
-            <BellIcon color={INK} />
-            <View style={ho.bellDot} />
-          </TouchableOpacity>
           <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search your library">
             <SearchIcon color={INK} />
           </TouchableOpacity>

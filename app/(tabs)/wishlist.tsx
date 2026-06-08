@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { BookCover } from '../../components/BookCover';
 import { HeartIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
+import { forceSync } from '../../lib/sync';
 import type { Book, ShelfBook } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
@@ -21,6 +22,13 @@ export default function WishlistScreen() {
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
   const addToShelf = useBookshelfStore((s) => s.addToShelf);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    forceSync();
+    setTimeout(() => setRefreshing(false), 900);
+  }, []);
 
   const items = useMemo(
     () =>
@@ -64,7 +72,11 @@ export default function WishlistScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView contentContainerStyle={[w.list, { paddingBottom: insets.bottom + 110 }]} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          contentContainerStyle={[w.list, { paddingBottom: insets.bottom + 110 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BROWN} colors={[AMBER]} />}
+        >
           {items.map((b) => {
             const meta = [b.publishedYear, b.pageCount ? `${b.pageCount} pp` : null].filter(Boolean).join(' · ');
             return (

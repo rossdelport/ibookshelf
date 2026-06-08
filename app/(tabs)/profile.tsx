@@ -1,9 +1,9 @@
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { AvatarFace } from '../../components/AvatarFace';
-import { GearIcon, LockIcon, ShareNodesIcon, SparkIcon } from '../../components/icons';
+import { GearIcon, LockIcon, SparkIcon } from '../../components/icons';
 import { ANIMALS } from '../../constants/animals';
 import { useUserStore } from '../../store/userStore';
 import { useBookshelfStore } from '../../store/bookshelfStore';
@@ -68,6 +68,16 @@ export default function ProfileScreen() {
     await supabase.auth.signOut();
     router.replace('/');
   };
+  const confirmSignOut = () => {
+    Alert.alert(
+      'Sign out?',
+      'You can sign back in anytime — your library stays backed up in the cloud.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign out', style: 'destructive', onPress: signOut },
+      ],
+    );
+  };
   const avatar = profile.avatar ?? DEFAULT_AVATAR;
   const soul = ANIMALS.find((a) => a.name === profile.soulAnimal) ?? ANIMALS.find((a) => a.name === 'Fox')!;
   const traits = TRAITS[soul.name] ?? TRAITS.Fox;
@@ -96,8 +106,9 @@ export default function ProfileScreen() {
           <LinearGradient colors={['#FBEFD7', 'rgba(250,248,243,0)']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.7 }} style={StyleSheet.absoluteFill} />
 
           <View style={[pf.heroActions, { top: insets.top + 8 }]}>
-            <TouchableOpacity style={pf.iconBtn} activeOpacity={0.7}><ShareNodesIcon color={INK} /></TouchableOpacity>
-            <TouchableOpacity style={pf.iconBtn} activeOpacity={0.7}><GearIcon color={INK} /></TouchableOpacity>
+            <TouchableOpacity style={pf.iconBtn} activeOpacity={0.7} onPress={confirmSignOut} accessibilityRole="button" accessibilityLabel="Account and sign out">
+              <GearIcon color={INK} />
+            </TouchableOpacity>
           </View>
 
           <View style={pf.avatarWrap}>

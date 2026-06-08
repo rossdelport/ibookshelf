@@ -27,6 +27,12 @@ const STATUSES: { key: ReadingStatus; label: string; emoji: string }[] = [
   { key: 'did_not_finish', label: 'DNF',      emoji: '🌙' },
 ];
 
+function fmtDate(iso?: string): string | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
 function Chevron() {
   return (
     <View style={d.chevronWrap}>
@@ -68,10 +74,18 @@ export default function BookDetailScreen() {
   }
 
   const setStatus = (status: ReadingStatus) => {
+    Haptics.selectionAsync();
     const now = new Date().toISOString();
     const updates: Parameters<typeof updateShelfEntry>[1] = { status };
     if (status === 'reading' && !entry.startedAt) updates.startedAt = now;
-    if (status === 'read') updates.finishedAt = now;
+    if (status === 'read') {
+      updates.finishedAt = now;
+      // Finishing a book completes its progress (so it reads 100%, not 0%).
+      if (book.pageCount) {
+        updates.currentPage = book.pageCount;
+        setPageStr(String(book.pageCount));
+      }
+    }
     updateShelfEntry(id, updates);
   };
 
@@ -120,6 +134,14 @@ export default function BookDetailScreen() {
   const meta = [book.publishedYear, book.pageCount ? `${book.pageCount} pp` : null, book.genres?.[0]]
     .filter(Boolean)
     .join(' · ');
+
+  const dates = [
+    `Added ${fmtDate(entry.addedAt)}`,
+    entry.startedAt ? `Started ${fmtDate(entry.startedAt)}` : null,
+    entry.finishedAt ? `Finished ${fmtDate(entry.finishedAt)}` : null,
+  ]
+    .filter(Boolean)
+    .join('   ·   ');
 
   return (
     <SafeAreaView style={d.safe}>
@@ -270,6 +292,9 @@ export default function BookDetailScreen() {
             textAlignVertical="top"
           />
 
+          {/* ── Dates ──────────────────────────────────── */}
+          {!!dates && <Text style={d.dates}>{dates}</Text>}
+
           {/* ── Remove ─────────────────────────────────── */}
           <TouchableOpacity style={d.removeBtn} onPress={remove} activeOpacity={0.7}>
             <Text style={d.removeText}>Remove from library</Text>
@@ -385,8 +410,11 @@ const d = StyleSheet.create({
     shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
   },
 
+  // ── Dates
+  dates: { textAlign: 'center', marginTop: 26, fontSize: 12, fontWeight: '600', color: MUTE },
+
   // ── Remove
-  removeBtn: { alignSelf: 'center', marginTop: 28, paddingVertical: 10, paddingHorizontal: 20 },
+  removeBtn: { alignSelf: 'center', marginTop: 14, paddingVertical: 10, paddingHorizontal: 20 },
   removeText: { fontSize: 14, fontWeight: '700', color: RED },
 
   // ── Missing
