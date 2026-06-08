@@ -1,0 +1,44 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "ios": { "simulator": true },
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY": "AIzaSyDa6Ii7-InJ9t5o7N-b__7Az_5jIkLNlLE",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://afkgkmhshitfopddadbr.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_z_l86pQblvEXtJc7ZtnmAA_r46kJhiy"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": { "simulator": false },
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY": "AIzaSyDa6Ii7-InJ9t5o7N-b__7Az_5jIkLNlLE",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://afkgkmhshitfopddadbr.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_z_l86pQblvEXtJc7ZtnmAA_r46kJhiy"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_GOOGLE_BOOKS_API_KEY": "AIzaSyDa6Ii7-InJ9t5o7N-b__7Az_5jIkLNlLE",
+        "EXPO_PUBLIC_SUPABASE_URL": "https://afkgkmhshitfopddadbr.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "sb_publishable_z_l86pQblvEXtJc7ZtnmAA_r46kJhiy"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "REPLACE_WITH_YOUR_APPLE_ID_EMAIL",
+        "ascAppId": "REPLACE_WITH_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "REPLACE_WITH_YOUR_APPLE_TEAM_ID"
+      }
+    }
+  }
+}

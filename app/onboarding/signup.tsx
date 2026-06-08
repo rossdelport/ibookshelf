@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
 import { signInWithGoogle } from '../../lib/googleAuth';
+import { signInWithApple } from '../../lib/appleAuth';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -72,17 +73,27 @@ export default function SignUpScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const emailValid = email.includes('@') && email.includes('.');
   const passwordValid = password.length >= 6;
-  const disabled = loading || googleLoading || !emailValid || !passwordValid;
+  const disabled = loading || googleLoading || appleLoading || !emailValid || !passwordValid;
 
   const onGoogle = async () => {
     setGoogleLoading(true);
     setError(null);
     const res = await signInWithGoogle();
     setGoogleLoading(false);
+    if (res.ok) router.push('/onboarding/scan');
+    else if (res.error) setError(res.error);
+  };
+
+  const onApple = async () => {
+    setAppleLoading(true);
+    setError(null);
+    const res = await signInWithApple();
+    setAppleLoading(false);
     if (res.ok) router.push('/onboarding/scan');
     else if (res.error) setError(res.error);
   };
@@ -107,12 +118,6 @@ export default function SignUpScreen() {
       setError('Account created — turn off "Confirm email" in Supabase to sign in instantly.');
     }
   };
-
-  const social = (provider: string) =>
-    Alert.alert(
-      `${provider} sign-in`,
-      `${provider} login is coming soon — it needs the ${provider} provider configured in Supabase. For now, sign up with email.`,
-    );
 
   return (
     <SafeAreaView style={su.safe}>
@@ -173,11 +178,19 @@ export default function SignUpScreen() {
 
           {/* ── Auth buttons ─────────────────────────── */}
           <View style={su.authStack}>
-            {/* Apple — §5 dark button: #2A2420 bg, white text */}
-            <TouchableOpacity style={su.appleBtn} activeOpacity={0.85} onPress={() => social('Apple')}>
-              <AppleIcon />
-              <Text style={su.appleBtnText}>Continue with Apple</Text>
-            </TouchableOpacity>
+            {/* Apple — §5 dark button: #2A2420 bg, white text (iOS only) */}
+            {Platform.OS === 'ios' && (
+              <TouchableOpacity style={su.appleBtn} activeOpacity={0.85} onPress={onApple} disabled={appleLoading}>
+                {appleLoading ? (
+                  <ActivityIndicator color={WHITE} />
+                ) : (
+                  <>
+                    <AppleIcon />
+                    <Text style={su.appleBtnText}>Continue with Apple</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
 
             {/* Google — §5 ghost variant: white bg, hairline border */}
             <TouchableOpacity style={su.googleBtn} activeOpacity={0.85} onPress={onGoogle} disabled={googleLoading}>

@@ -9,8 +9,12 @@
     "scheme": "fable",
     "ios": {
       "supportsTablet": false,
-      "minimumOsVersion": "17.0",
-      "bundleIdentifier": "com.fable.ibookshelf"
+      "minimumOsVersion": "15.1",
+      "bundleIdentifier": "com.fable.ibookshelf",
+      "usesAppleSignIn": true,
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +32,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FAF8F3"
+        }
+      ],
       "expo-asset",
       [
         "expo-camera",
@@ -42,6 +54,7 @@
           "photosPermission": "iBookshelf uses your photo library to set a book's cover image."
         }
       ],
+      "expo-apple-authentication",
       "expo-web-browser"
     ],
     "experiments": {

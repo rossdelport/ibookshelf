@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { signInWithGoogle } from '../lib/googleAuth';
+import { signInWithApple } from '../lib/appleAuth';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -26,6 +27,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const valid = /\S+@\S+\.\S+/.test(email) && password.length >= 6;
@@ -35,6 +37,15 @@ export default function LoginScreen() {
     setError(null);
     const res = await signInWithGoogle();
     setGoogleLoading(false);
+    if (res.ok) router.replace('/(tabs)');
+    else if (res.error) setError(res.error);
+  };
+
+  const onApple = async () => {
+    setAppleLoading(true);
+    setError(null);
+    const res = await signInWithApple();
+    setAppleLoading(false);
     if (res.ok) router.replace('/(tabs)');
     else if (res.error) setError(res.error);
   };
@@ -67,6 +78,20 @@ export default function LoginScreen() {
         <View style={lg.body}>
           <Text style={lg.title}>Welcome back.</Text>
           <Text style={lg.sub}>Sign in to sync your library across your devices.</Text>
+
+          {/* Apple (iOS only) */}
+          {Platform.OS === 'ios' && (
+            <TouchableOpacity style={lg.appleBtn} activeOpacity={0.85} onPress={onApple} disabled={appleLoading}>
+              {appleLoading ? (
+                <ActivityIndicator color={WHITE} />
+              ) : (
+                <>
+                  <Text style={lg.appleGlyph}></Text>
+                  <Text style={lg.appleBtnText}>Continue with Apple</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          )}
 
           {/* Google */}
           <TouchableOpacity style={lg.googleBtn} activeOpacity={0.85} onPress={onGoogle} disabled={googleLoading}>
@@ -154,6 +179,14 @@ const lg = StyleSheet.create({
     shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
   },
   input: { fontSize: 15, fontWeight: '500', color: INK, padding: 0 },
+
+  // Apple button (§5 dark button)
+  appleBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    backgroundColor: '#2A2420', borderRadius: 16, paddingVertical: 17, marginTop: 4,
+  },
+  appleGlyph: { color: WHITE, fontSize: 18, marginTop: -2 },
+  appleBtnText: { color: WHITE, fontSize: 16, fontWeight: '700' },
 
   // Google button (§5 ghost variant)
   googleBtn: {
