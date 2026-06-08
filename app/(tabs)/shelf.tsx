@@ -100,20 +100,8 @@ export default function ShelfScreen() {
     [books, shelf],
   );
 
-  // Wishlist = books you want but don't own yet (kept out of the owned library).
-  const wishlist = useMemo(
-    () =>
-      Object.values(shelf)
-        .filter((e) => e.status === 'wishlist')
-        .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
-        .map((e) => ({ ...books[e.bookId], shelf: e }))
-        .filter((b): b is ShelfBook => !!b.id),
-    [books, shelf],
-  );
-
   const total = owned.length;
   const readCount = owned.filter((b) => b.shelf.status === 'read').length;
-  const libraryEmpty = total === 0 && wishlist.length === 0;
 
   const chips = useMemo(
     () => [
@@ -121,20 +109,16 @@ export default function ShelfScreen() {
       { kind: 'status' as const, value: 'Reading', label: 'Reading', color: undefined as string | undefined },
       { kind: 'status' as const, value: 'Finished', label: 'Finished', color: undefined as string | undefined },
       { kind: 'status' as const, value: 'Want to read', label: 'Want to read', color: undefined as string | undefined },
-      ...(wishlist.length ? [{ kind: 'status' as const, value: 'Wishlist', label: 'Wishlist', color: undefined as string | undefined }] : []),
       ...(shelfDefs ?? []).map((s) => ({ kind: 'shelf' as const, value: s.name, label: `${s.emoji}  ${s.name}`, color: shelfChipColor(s.color) })),
     ],
-    [shelfDefs, wishlist.length],
+    [shelfDefs],
   );
 
   const visible = useMemo(() => {
     if (filter.kind === 'all') return owned;
-    if (filter.kind === 'status') {
-      if (filter.value === 'Wishlist') return wishlist;
-      return owned.filter((b) => b.shelf.status === STATUS_FOR[filter.value]);
-    }
+    if (filter.kind === 'status') return owned.filter((b) => b.shelf.status === STATUS_FOR[filter.value]);
     return owned.filter((b) => (b.shelf.shelves ?? []).includes(filter.value));
-  }, [owned, wishlist, filter]);
+  }, [owned, filter]);
 
   const sorted = useMemo(() => {
     const arr = [...visible];
@@ -175,7 +159,7 @@ export default function ShelfScreen() {
         <SyncStatus />
       </View>
 
-      {libraryEmpty ? (
+      {total === 0 ? (
         // ── Empty state ──────────────────────────────
         <View style={sl.empty}>
           <Text style={sl.emptyEmoji}>📚</Text>

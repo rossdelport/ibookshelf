@@ -309,7 +309,7 @@ export default function ScanScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[sc.act, sc.actSolid]}
-                  onPress={() => router.navigate(mode === 'shelf' ? '/(tabs)/shelf' : '/(tabs)')}
+                  onPress={() => router.navigate(mode === 'shelf' ? '/(tabs)/shelf' : '/(tabs)/wishlist')}
                   activeOpacity={0.85}
                 >
                   <Text style={sc.actSolidText}>{mode === 'shelf' ? 'View Shelf' : 'View Wishlist'}</Text>
