@@ -172,6 +172,7 @@ export default function ProfileScreen() {
                 returnKeyType="done"
                 onSubmitEditing={saveName}
               />
+              <TouchableOpacity onPress={() => setEditingName(false)} activeOpacity={0.7}><Text style={pf.nameCancel}>Cancel</Text></TouchableOpacity>
               <TouchableOpacity onPress={saveName} activeOpacity={0.7}><Text style={pf.nameSave}>Save</Text></TouchableOpacity>
             </View>
           ) : (
@@ -356,6 +357,7 @@ const pf = StyleSheet.create({
     borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.18)',
   },
   nameSave: { fontSize: 14, fontWeight: '800', color: '#C0851E' },
+  nameCancel: { fontSize: 14, fontWeight: '800', color: MUTE },
   handle: { fontSize: 13, fontWeight: '600', color: MUTE, marginTop: 4 },
 
   heroSoul: {

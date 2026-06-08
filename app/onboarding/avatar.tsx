@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useUserStore } from '../../store/userStore';
@@ -105,8 +105,9 @@ function HairStyleSwatch({
 // ── Main screen ────────────────────────────────────────────────────────────
 
 export default function AvatarScreen() {
-  const { setAvatar } = useUserStore();
+  const { setAvatar, setUsername, profile } = useUserStore();
 
+  const [name,      setName]      = useState(profile.username ?? '');
   const [gender,    setGender]    = useState<'male' | 'female'>('male');
   const [skinIdx,   setSkinIdx]   = useState(2);   // medium by default
   const [hairStyle, setHairStyle] = useState(1);   // curly by default
@@ -143,9 +144,17 @@ export default function AvatarScreen() {
           <AvatarFace skin={skin} hairStyle={hairStyle} hairColor={hair} size={128} />
         </View>
 
-        {/* ── Username ───────────────────────────────── */}
+        {/* ── Name ───────────────────────────────────── */}
         <View style={av.usernameRow}>
-          <Text style={av.username}>Ross</Text>
+          <TextInput
+            style={av.username}
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            placeholderTextColor={MUTE}
+            maxLength={30}
+            returnKeyType="done"
+          />
           <Text style={av.editIcon}>🖊</Text>
         </View>
 
@@ -204,6 +213,7 @@ export default function AvatarScreen() {
         <TouchableOpacity
           style={av.cta}
           onPress={() => {
+            setUsername(name);
             setAvatar({ gender, skin, hairStyle, hairColor: hair });
             router.push('/onboarding/soul');
           }}
@@ -248,9 +258,12 @@ const av = StyleSheet.create({
     shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 14, elevation: 3,
   },
 
-  // ── Username
+  // ── Name
   usernameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 12, gap: 6 },
-  username:    { fontSize: 17, fontWeight: '800', color: INK },
+  username:    {
+    fontSize: 17, fontWeight: '800', color: INK, textAlign: 'center', minWidth: 120, paddingVertical: 4, paddingHorizontal: 6,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(139,94,60,0.2)',
+  },
   editIcon:    { fontSize: 14 },
 
   // ── Segmented control (§5 pattern)
