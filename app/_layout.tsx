@@ -95,6 +95,7 @@ export default function RootLayout() {
         />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="book/[id]" />
+        <Stack.Screen name="wishlist-item" />
         <Stack.Screen name="search" />
         <Stack.Screen name="add" />
         <Stack.Screen name="new-shelf" options={{ presentation: 'modal' }} />

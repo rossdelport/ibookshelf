@@ -3,12 +3,11 @@ import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { BookCover } from '../../components/BookCover';
-import { HeartIcon } from '../../components/icons';
+import { ChevronIcon, HeartIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { forceSync } from '../../lib/sync';
-import type { Book, ShelfBook } from '../../types/book';
+import type { ShelfBook } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -21,7 +20,6 @@ export default function WishlistScreen() {
   const insets = useSafeAreaInsets();
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
-  const addToShelf = useBookshelfStore((s) => s.addToShelf);
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(() => {
@@ -39,13 +37,6 @@ export default function WishlistScreen() {
         .filter((b): b is ShelfBook => !!b.id),
     [books, shelf],
   );
-
-  // "I own this" — move a wishlisted book into the owned library (keeps notes).
-  const ownIt = (b: ShelfBook) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const { shelf: _entry, ...book } = b; // strip the entry so we store a clean Book
-    addToShelf(book as Book, 'want_to_read');
-  };
 
   return (
     <LinearGradient colors={['#FAF8F3', '#F3ECDF']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={w.fill}>
@@ -80,31 +71,24 @@ export default function WishlistScreen() {
           {items.map((b) => {
             const meta = [b.publishedYear, b.pageCount ? `${b.pageCount} pp` : null].filter(Boolean).join(' · ');
             return (
-              <View key={b.id} style={w.card}>
-                <TouchableOpacity
-                  style={w.cardMain}
-                  activeOpacity={0.8}
-                  onPress={() => router.push({ pathname: '/book/[id]', params: { id: b.id } })}
-                >
-                  <View style={w.cover}>
-                    <BookCover title={b.title} author={b.author} coverUrl={b.coverUrl} />
-                  </View>
-                  <View style={w.text}>
-                    <Text style={w.title} numberOfLines={2}>{b.title}</Text>
-                    <Text style={w.author} numberOfLines={1}>{b.author}</Text>
-                    {!!meta && <Text style={w.meta}>{meta}</Text>}
-                  </View>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={w.ownBtn}
-                  onPress={() => ownIt(b)}
-                  activeOpacity={0.85}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Move ${b.title} to your library`}
-                >
-                  <Text style={w.ownText}>I own this</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity
+                key={b.id}
+                style={w.card}
+                activeOpacity={0.8}
+                onPress={() => router.push({ pathname: '/wishlist-item', params: { id: b.id } })}
+                accessibilityRole="button"
+                accessibilityLabel={`Open ${b.title}`}
+              >
+                <View style={w.cover}>
+                  <BookCover title={b.title} author={b.author} coverUrl={b.coverUrl} />
+                </View>
+                <View style={w.text}>
+                  <Text style={w.title} numberOfLines={2}>{b.title}</Text>
+                  <Text style={w.author} numberOfLines={1}>{b.author}</Text>
+                  {!!meta && <Text style={w.meta}>{meta}</Text>}
+                </View>
+                <ChevronIcon color={MUTE} size={18} />
+              </TouchableOpacity>
             );
           })}
         </ScrollView>

@@ -208,6 +208,15 @@ export default function ScanScreen() {
         </TouchableOpacity>
       </View>
 
+      {/* ── "You own this" banner (top third) when a scan is a duplicate ─ */}
+      {mode === 'owned' && (
+        <View style={[sc.ownedBanner, { top: insets.top + 70 }]} pointerEvents="none">
+          <Text style={sc.ownedBannerEmoji}>📚</Text>
+          <Text style={sc.ownedBannerText}>You own this book!</Text>
+          <Text style={sc.ownedBannerSub}>No need to buy it again 🎉</Text>
+        </View>
+      )}
+
       {/* ── Reticle + hint ────────────────────────────── */}
       {!showSheet && (
         <View style={sc.center} pointerEvents="none">
@@ -365,6 +374,17 @@ const sc = StyleSheet.create({
   topBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
   topBtnOn: { backgroundColor: AMBER },
   topTitle: { fontSize: 16, fontWeight: '800', color: WHITE, letterSpacing: -0.2 },
+
+  // ── "You own this" banner (duplicate scan)
+  ownedBanner: {
+    position: 'absolute', left: 22, right: 22, alignItems: 'center', zIndex: 7,
+    backgroundColor: 'rgba(250,248,243,0.97)', borderRadius: 24, paddingVertical: 20, paddingHorizontal: 22,
+    borderWidth: 1.5, borderColor: AMBER,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 22, elevation: 10,
+  },
+  ownedBannerEmoji: { fontSize: 34 },
+  ownedBannerText: { fontSize: 22, fontWeight: '900', color: INK, marginTop: 8, letterSpacing: -0.4 },
+  ownedBannerSub: { fontSize: 14, fontWeight: '700', color: BROWN, marginTop: 4 },
 
   // ── Reticle
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
