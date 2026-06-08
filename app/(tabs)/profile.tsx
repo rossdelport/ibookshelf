@@ -8,7 +8,7 @@ import { ANIMALS } from '../../constants/animals';
 import { useUserStore } from '../../store/userStore';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { supabase } from '../../lib/supabase';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -75,6 +75,39 @@ export default function ProfileScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Sign out', style: 'destructive', onPress: signOut },
+      ],
+    );
+  };
+
+  // Permanent account deletion — server-side (Edge Function) with a double confirm.
+  const [deleting, setDeleting] = useState(false);
+  const doDeleteAccount = async () => {
+    try {
+      setDeleting(true);
+      const { error } = await supabase.functions.invoke('delete-account');
+      if (error) throw error;
+      await supabase.auth.signOut().catch(() => {});
+      router.replace('/');
+    } catch {
+      setDeleting(false);
+      Alert.alert('Couldn’t delete account', 'Something went wrong. Please check your connection and try again.');
+    }
+  };
+  const confirmDeleteAccount = () => {
+    Alert.alert(
+      'Delete account?',
+      'This permanently deletes your account and your entire library, shelves and notes. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert('Are you absolutely sure?', 'There’s no way to recover your account or books after this.', [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Delete forever', style: 'destructive', onPress: doDeleteAccount },
+            ]),
+        },
       ],
     );
   };
@@ -248,6 +281,12 @@ export default function ProfileScreen() {
         <TouchableOpacity style={pf.signOut} onPress={signOut} activeOpacity={0.7}>
           <Text style={pf.signOutText}>Sign out</Text>
         </TouchableOpacity>
+
+        {/* ── Delete account ───────────────────────────── */}
+        <TouchableOpacity style={pf.deleteAccount} onPress={confirmDeleteAccount} activeOpacity={0.7} disabled={deleting}>
+          <Text style={pf.deleteAccountText}>{deleting ? 'Deleting…' : 'Delete account'}</Text>
+        </TouchableOpacity>
+        <Text style={pf.deleteCaption}>Permanently deletes your account, library and notes.</Text>
       </ScrollView>
     </LinearGradient>
   );
@@ -366,5 +405,9 @@ const pf = StyleSheet.create({
 
   // ── Sign out
   signOut: { alignSelf: 'center', marginTop: 22, paddingVertical: 12, paddingHorizontal: 24 },
-  signOutText: { fontSize: 14, fontWeight: '800', color: '#E0506B' },
+  signOutText: { fontSize: 14, fontWeight: '800', color: BROWN },
+
+  deleteAccount: { alignSelf: 'center', marginTop: 4, paddingVertical: 8, paddingHorizontal: 24 },
+  deleteAccountText: { fontSize: 14, fontWeight: '800', color: '#E0506B' },
+  deleteCaption: { alignSelf: 'center', fontSize: 11.5, fontWeight: '600', color: MUTE, marginTop: 2, marginBottom: 6, textAlign: 'center' },
 });
