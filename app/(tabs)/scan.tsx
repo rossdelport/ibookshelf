@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { router, useFocusEffect } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import * as Haptics from 'expo-haptics';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { CheckIcon, CloseIcon, FlashIcon, HeartIcon, ShelfIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
@@ -98,13 +101,20 @@ export default function ScanScreen() {
   const handleBarcode = useCallback(async ({ data }: BarcodeScanningResult) => {
     if (lock.current) return;
     lock.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // caught a barcode
     setMode('identifying');
     const found = await lookupBookByIsbn(data);
-    if (!found) { setMode('notfound'); return; }
+    if (!found) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setMode('notfound');
+      return;
+    }
     setBook(found);
     // Duplicate check — owned means a shelf entry that isn't merely a wishlist item.
     const entry = getShelfEntry(found.id);
-    setMode(entry && entry.status !== 'wishlist' ? 'owned' : 'result');
+    const owned = !!entry && entry.status !== 'wishlist';
+    Haptics.notificationAsync(owned ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Success);
+    setMode(owned ? 'owned' : 'result');
   }, [getShelfEntry]);
 
   const reset = () => { lock.current = false; setBook(null); setMode('aim'); };
@@ -115,6 +125,7 @@ export default function ScanScreen() {
   const exit = () => { reset(); router.navigate('/(tabs)'); };
 
   const addToLibrary = (status: 'want_to_read' | 'wishlist') => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (book) addToShelf(book, status);
     setMode(status === 'wishlist' ? 'wishlist' : 'shelf');
   };
@@ -134,6 +145,9 @@ export default function ScanScreen() {
 
   return (
     <View style={sc.root}>
+      {/* Light status-bar icons over the dark camera (only while focused). */}
+      {focused && <StatusBar style="light" />}
+
       {/* ── Camera (live) ─────────────────────────────── */}
       {permission?.granted ? (
         <CameraView
@@ -143,7 +157,7 @@ export default function ScanScreen() {
           // Camera runs only while aiming AND the tab is focused; powers down
           // after a scan, on leaving via ✕, or switching tabs.
           active={scanning && focused}
-          barcodeScannerSettings={{ barcodeTypes: ['ean13'] }}
+          barcodeScannerSettings={{ barcodeTypes: ['ean13', 'upc_a', 'ean8'] }}
           onBarcodeScanned={scanning ? handleBarcode : undefined}
         />
       ) : (
@@ -179,9 +193,17 @@ export default function ScanScreen() {
 
       {/* ── Top bar ───────────────────────────────────── */}
       <View style={[sc.top, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity style={sc.topBtn} onPress={exit} activeOpacity={0.7}><CloseIcon color={WHITE} /></TouchableOpacity>
+        <TouchableOpacity style={sc.topBtn} onPress={exit} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Cancel scan">
+          <CloseIcon color={WHITE} />
+        </TouchableOpacity>
         <Text style={sc.topTitle}>Scan a Book</Text>
-        <TouchableOpacity style={[sc.topBtn, flash && sc.topBtnOn]} onPress={() => setFlash((f) => !f)} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={[sc.topBtn, flash && sc.topBtnOn]}
+          onPress={() => setFlash((f) => !f)}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={flash ? 'Turn flash off' : 'Turn flash on'}
+        >
           <FlashIcon color={flash ? INK : WHITE} />
         </TouchableOpacity>
       </View>
@@ -305,7 +327,7 @@ export default function ScanScreen() {
 function BookCover({ book, small, large }: { book: Book; small?: boolean; large?: boolean }) {
   const style = small ? sc.doneRowImg : large ? sc.foundImg : sc.foundImg;
   if (book.coverUrl) {
-    return <Image source={{ uri: book.coverUrl }} style={style} resizeMode="cover" />;
+    return <Image source={{ uri: book.coverUrl }} style={style} contentFit="cover" transition={200} cachePolicy="memory-disk" />;
   }
   return (
     <View style={[style, sc.coverFallback]}>

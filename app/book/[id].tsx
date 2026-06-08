@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import {
-  KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { BookCover } from '../../components/BookCover';
@@ -55,7 +56,7 @@ export default function BookDetailScreen() {
     return (
       <SafeAreaView style={d.safe}>
         <View style={d.topbar}>
-          <TouchableOpacity style={d.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity style={d.backBtn} onPress={() => router.back()} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
             <Chevron />
           </TouchableOpacity>
         </View>
@@ -87,12 +88,21 @@ export default function BookDetailScreen() {
   };
 
   const remove = () => {
-    removeFromShelf(id);
-    router.back();
+    Alert.alert(
+      'Remove from library?',
+      `“${book.title}” and its notes, rating and progress will be removed. This can’t be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Remove', style: 'destructive', onPress: () => { removeFromShelf(id); router.back(); } },
+      ],
+    );
   };
 
   // Tap a star to set the rating; tap the same one again to clear it.
-  const setRating = (r: number) => updateShelfEntry(id, { rating: entry.rating === r ? undefined : r });
+  const setRating = (r: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    updateShelfEntry(id, { rating: entry.rating === r ? undefined : r });
+  };
 
   const startEdit = () => {
     setTitleStr(book.title);
@@ -116,7 +126,7 @@ export default function BookDetailScreen() {
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {/* ── Topbar ───────────────────────────────────── */}
         <View style={d.topbar}>
-          <TouchableOpacity style={d.backBtn} onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity style={d.backBtn} onPress={() => router.back()} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
             <Chevron />
           </TouchableOpacity>
         </View>

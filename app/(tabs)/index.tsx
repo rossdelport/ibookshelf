@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useRef } from 'react';
-import { Animated, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Accelerometer } from 'expo-sensors';
 import { ArrowIcon, BellIcon, PlayIcon, SearchIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
+import { forceSync } from '../../lib/sync';
 import type { ShelfBook } from '../../types/book';
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
@@ -59,7 +61,7 @@ function HeroBook({ book, pct }: { book: ShelfBook; pct: number }) {
         style={[ho.book3d, { transform: [{ perspective: 1400 }, { rotateY }, { rotateX }, { rotateZ: '-1deg' }] }]}
       >
         {book.coverUrl ? (
-          <Image source={{ uri: book.coverUrl }} style={ho.bookCover} resizeMode="cover" />
+          <ExpoImage source={{ uri: book.coverUrl }} style={ho.bookCover} contentFit="cover" transition={220} cachePolicy="memory-disk" />
         ) : (
           <View style={[ho.bookCover, ho.bookCoverFallback]}>
             <Text style={ho.bookCoverFallbackText} numberOfLines={4}>{book.title.toUpperCase()}</Text>
@@ -83,7 +85,7 @@ function HeroBook({ book, pct }: { book: ShelfBook; pct: number }) {
 
 function MiniCover({ book }: { book: ShelfBook }) {
   if (book.coverUrl) {
-    return <Image source={{ uri: book.coverUrl }} style={ho.miniBook} resizeMode="cover" />;
+    return <ExpoImage source={{ uri: book.coverUrl }} style={ho.miniBook} contentFit="cover" transition={220} cachePolicy="memory-disk" />;
   }
   return (
     <View style={[ho.miniBook, ho.miniFallback]}>
@@ -107,6 +109,13 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    forceSync(); // "back up now"; brief spinner so the gesture feels acknowledged
+    setTimeout(() => setRefreshing(false), 900);
+  }, []);
 
   const owned = useMemo(
     () =>
@@ -143,6 +152,7 @@ export default function HomeScreen() {
       style={ho.screen}
       contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 110 }}
       showsVerticalScrollIndicator={false}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BROWN} colors={[AMBER]} />}
     >
       {/* ── Topbar ───────────────────────────────────── */}
       <View style={ho.topbar}>
@@ -151,11 +161,11 @@ export default function HomeScreen() {
           <View style={ho.soul}><Text style={ho.soulEmoji}>🦊</Text></View>
         </View>
         <View style={ho.topActions}>
-          <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7}>
+          <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Notifications">
             <BellIcon color={INK} />
             <View style={ho.bellDot} />
           </TouchableOpacity>
-          <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')}>
+          <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search your library">
             <SearchIcon color={INK} />
           </TouchableOpacity>
         </View>

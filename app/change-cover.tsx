@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
@@ -120,7 +121,7 @@ export default function ChangeCoverScreen() {
                 const isCurrent = url === current;
                 return (
                   <TouchableOpacity key={`${i}:${url}`} style={cc.tile} onPress={() => pick(url)} activeOpacity={0.85}>
-                    <Image source={{ uri: url }} style={cc.tileImg} resizeMode="cover" />
+                    <Image source={{ uri: url }} style={cc.tileImg} contentFit="cover" transition={200} cachePolicy="memory-disk" />
                     {isCurrent && <View style={cc.currentBadge}><Text style={cc.currentText}>Current</Text></View>}
                   </TouchableOpacity>
                 );

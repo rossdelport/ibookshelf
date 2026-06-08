@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Polygon } from 'react-native-svg';
 
@@ -81,7 +82,7 @@ export function BookCover({
     return (
       <View style={bc.shadowWrap}>
         <View style={bc.cover}>
-          <Image source={{ uri: coverUrl }} style={bc.img} resizeMode="cover" />
+          <Image source={{ uri: coverUrl }} style={bc.img} contentFit="cover" transition={220} cachePolicy="memory-disk" />
           <LinearGradient
             colors={['rgba(0,0,0,0.34)', 'rgba(0,0,0,0)']}
             start={{ x: 0, y: 0.5 }}

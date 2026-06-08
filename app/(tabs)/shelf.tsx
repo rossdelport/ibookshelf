@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -8,6 +8,8 @@ import { SyncStatus } from '../../components/SyncStatus';
 import { PlusIcon, SearchIcon } from '../../components/icons';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
+import { usePrefsStore } from '../../store/prefsStore';
+import { forceSync } from '../../lib/sync';
 import { shelfChipColor } from '../../constants/shelfColors';
 import type { ReadingStatus, ShelfBook } from '../../types/book';
 
@@ -71,12 +73,21 @@ function Plank() {
 export default function ShelfScreen() {
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState<Filter>({ kind: 'all', value: 'All' });
-  const [view, setView] = useState<'grid' | 'list'>('grid');
-  const [sort, setSort] = useState<'recent' | 'title' | 'author'>('recent');
+  const view = usePrefsStore((s) => s.shelfView);
+  const setView = usePrefsStore((s) => s.setShelfView);
+  const sort = usePrefsStore((s) => s.shelfSort);
+  const setSort = usePrefsStore((s) => s.setShelfSort);
+  const [refreshing, setRefreshing] = useState(false);
 
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
   const shelfDefs = useUserStore((s) => s.profile.shelves);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    forceSync(); // "back up now"; brief spinner so the gesture feels acknowledged
+    setTimeout(() => setRefreshing(false), 900);
+  }, []);
 
   // Owned library = everything on the shelf except wishlist items.
   const owned = useMemo(
@@ -89,8 +100,20 @@ export default function ShelfScreen() {
     [books, shelf],
   );
 
+  // Wishlist = books you want but don't own yet (kept out of the owned library).
+  const wishlist = useMemo(
+    () =>
+      Object.values(shelf)
+        .filter((e) => e.status === 'wishlist')
+        .sort((a, b) => new Date(b.addedAt).getTime() - new Date(a.addedAt).getTime())
+        .map((e) => ({ ...books[e.bookId], shelf: e }))
+        .filter((b): b is ShelfBook => !!b.id),
+    [books, shelf],
+  );
+
   const total = owned.length;
   const readCount = owned.filter((b) => b.shelf.status === 'read').length;
+  const libraryEmpty = total === 0 && wishlist.length === 0;
 
   const chips = useMemo(
     () => [
@@ -98,16 +121,20 @@ export default function ShelfScreen() {
       { kind: 'status' as const, value: 'Reading', label: 'Reading', color: undefined as string | undefined },
       { kind: 'status' as const, value: 'Finished', label: 'Finished', color: undefined as string | undefined },
       { kind: 'status' as const, value: 'Want to read', label: 'Want to read', color: undefined as string | undefined },
+      ...(wishlist.length ? [{ kind: 'status' as const, value: 'Wishlist', label: 'Wishlist', color: undefined as string | undefined }] : []),
       ...(shelfDefs ?? []).map((s) => ({ kind: 'shelf' as const, value: s.name, label: `${s.emoji}  ${s.name}`, color: shelfChipColor(s.color) })),
     ],
-    [shelfDefs],
+    [shelfDefs, wishlist.length],
   );
 
   const visible = useMemo(() => {
     if (filter.kind === 'all') return owned;
-    if (filter.kind === 'status') return owned.filter((b) => b.shelf.status === STATUS_FOR[filter.value]);
+    if (filter.kind === 'status') {
+      if (filter.value === 'Wishlist') return wishlist;
+      return owned.filter((b) => b.shelf.status === STATUS_FOR[filter.value]);
+    }
     return owned.filter((b) => (b.shelf.shelves ?? []).includes(filter.value));
-  }, [owned, filter]);
+  }, [owned, wishlist, filter]);
 
   const sorted = useMemo(() => {
     const arr = [...visible];
@@ -116,7 +143,7 @@ export default function ShelfScreen() {
     return arr; // 'recent' keeps the addedAt-desc order from `owned`
   }, [visible, sort]);
 
-  const cycleSort = () => setSort((s) => (s === 'recent' ? 'title' : s === 'title' ? 'author' : 'recent'));
+  const cycleSort = () => setSort(sort === 'recent' ? 'title' : sort === 'title' ? 'author' : 'recent');
 
   return (
     <LinearGradient colors={['#FAF8F3', '#F3ECDF']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 1 }} style={sl.fill}>
@@ -127,10 +154,10 @@ export default function ShelfScreen() {
           <View style={sl.soul}><Text style={sl.soulEmoji}>🦊</Text></View>
         </View>
         <View style={sl.topActions}>
-          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')}>
+          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search your library">
             <SearchIcon color={INK} />
           </TouchableOpacity>
-          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.push('/add')}>
+          <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.push('/add')} accessibilityRole="button" accessibilityLabel="Add a book">
             <PlusIcon color={INK} />
           </TouchableOpacity>
         </View>
@@ -148,7 +175,7 @@ export default function ShelfScreen() {
         <SyncStatus />
       </View>
 
-      {total === 0 ? (
+      {libraryEmpty ? (
         // ── Empty state ──────────────────────────────
         <View style={sl.empty}>
           <Text style={sl.emptyEmoji}>📚</Text>
@@ -197,10 +224,10 @@ export default function ShelfScreen() {
               <Text style={sl.sortText}>↕  {SORT_LABEL[sort]}</Text>
             </TouchableOpacity>
             <View style={sl.viewToggle}>
-              <TouchableOpacity style={[sl.viewBtn, view === 'grid' && sl.viewBtnOn]} onPress={() => setView('grid')} activeOpacity={0.8}>
+              <TouchableOpacity style={[sl.viewBtn, view === 'grid' && sl.viewBtnOn]} onPress={() => setView('grid')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Grid view">
                 <Text style={[sl.viewGlyph, view === 'grid' && sl.viewGlyphOn]}>▦</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[sl.viewBtn, view === 'list' && sl.viewBtnOn]} onPress={() => setView('list')} activeOpacity={0.8}>
+              <TouchableOpacity style={[sl.viewBtn, view === 'list' && sl.viewBtnOn]} onPress={() => setView('list')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="List view">
                 <Text style={[sl.viewGlyph, view === 'list' && sl.viewGlyphOn]}>☰</Text>
               </TouchableOpacity>
             </View>
@@ -211,6 +238,7 @@ export default function ShelfScreen() {
             style={sl.shelves}
             contentContainerStyle={[view === 'grid' ? sl.shelvesContent : sl.listContent, { paddingBottom: insets.bottom + 96 }]}
             showsVerticalScrollIndicator={false}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BROWN} colors={[AMBER]} />}
           >
             {sorted.length === 0 ? (
               <Text style={sl.filterEmpty}>No books here yet.</Text>
