@@ -1,11 +1,23 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Sentry from '@sentry/react-native';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { useUserStore } from '../store/userStore';
 import { useBookshelfStore } from '../store/bookshelfStore';
 import { setSyncUser, fetchRemoteState, pushProfile, pushBook, initSync } from '../lib/sync';
+import { initSentry, sentryEnabled } from '../lib/sentry';
+import { ErrorScreen } from '../components/ErrorScreen';
+
+// Start crash reporting as early as possible (no-op until a DSN is configured).
+initSentry();
+
+// Root error boundary — expo-router renders this if any screen throws, instead
+// of white-screening; ErrorScreen also reports the error to Sentry.
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  return <ErrorScreen error={error} retry={retry} />;
+}
 
 // On sign-in, reconcile local (offline/onboarding) state with the cloud:
 // remote values win when present; anything that only exists locally is pushed up.
@@ -46,7 +58,7 @@ function handleSignedOut() {
   useUserStore.getState().reset();
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const setSession = useAuthStore((s) => s.setSession);
   const setInitializing = useAuthStore((s) => s.setInitializing);
 
@@ -108,3 +120,6 @@ export default function RootLayout() {
     </>
   );
 }
+
+// Wrap the root with Sentry (touch/navigation context) only when enabled.
+export default sentryEnabled ? Sentry.wrap(RootLayout) : RootLayout;
