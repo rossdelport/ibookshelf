@@ -1,4 +1,4 @@
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -61,7 +61,13 @@ function SectionCard({ title, action, onAction, children, style }: { title: stri
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { profile } = useUserStore();
+  const { profile, setUsername } = useUserStore();
+
+  // Editable display name (drives the Home greeting too).
+  const [editingName, setEditingName] = useState(false);
+  const [nameStr, setNameStr] = useState('');
+  const startEditName = () => { setNameStr(profile.username ?? ''); setEditingName(true); };
+  const saveName = () => { setUsername(nameStr); setEditingName(false); };
 
   // Sign-out → root layout clears the local stores; back to the welcome screen.
   const signOut = async () => {
@@ -153,8 +159,30 @@ export default function ProfileScreen() {
             </LinearGradient>
           </View>
 
-          <Text style={pf.name}>Ross</Text>
-          <Text style={pf.handle}>@rossreads · Reading since 2024</Text>
+          {editingName ? (
+            <View style={pf.nameEditRow}>
+              <TextInput
+                style={pf.nameInput}
+                value={nameStr}
+                onChangeText={setNameStr}
+                placeholder="Your name"
+                placeholderTextColor={MUTE}
+                autoFocus
+                maxLength={30}
+                returnKeyType="done"
+                onSubmitEditing={saveName}
+              />
+              <TouchableOpacity onPress={saveName} activeOpacity={0.7}><Text style={pf.nameSave}>Save</Text></TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={pf.nameRow} onPress={startEditName} activeOpacity={0.7}>
+              <Text style={pf.name}>{profile.username || 'Add your name'}</Text>
+              <Text style={pf.namePencil}>✎</Text>
+            </TouchableOpacity>
+          )}
+          {profile.username
+            ? <Text style={pf.handle}>@{profile.username.toLowerCase().replace(/\s+/g, '')}</Text>
+            : <Text style={pf.handle}>Tap your name to personalise it</Text>}
 
           {/* Soul feature block */}
           <View style={pf.heroSoul}>
@@ -318,7 +346,16 @@ const pf = StyleSheet.create({
   },
   soulBadgeEmoji: { fontSize: 25 },
 
-  name: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5, color: INK, marginTop: 16 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 16 },
+  name: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5, color: INK },
+  namePencil: { fontSize: 15, color: MUTE },
+  nameEditRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
+  nameInput: {
+    minWidth: 160, textAlign: 'center', fontSize: 20, fontWeight: '800', color: INK,
+    backgroundColor: WHITE, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8,
+    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.18)',
+  },
+  nameSave: { fontSize: 14, fontWeight: '800', color: '#C0851E' },
   handle: { fontSize: 13, fontWeight: '600', color: MUTE, marginTop: 4 },
 
   heroSoul: {

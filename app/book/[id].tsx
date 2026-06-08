@@ -57,6 +57,7 @@ export default function BookDetailScreen() {
   const [editing, setEditing] = useState(false);
   const [titleStr, setTitleStr] = useState(book?.title ?? '');
   const [authorStr, setAuthorStr] = useState(book?.author ?? '');
+  const [descExpanded, setDescExpanded] = useState(false);
 
   if (!book || !entry) {
     return (
@@ -191,6 +192,19 @@ export default function BookDetailScreen() {
               </>
             )}
           </View>
+
+          {/* ── About / synopsis ───────────────────────── */}
+          {!!book.description && (
+            <>
+              <Text style={d.sectionLabel}>ABOUT</Text>
+              <Text style={d.about} numberOfLines={descExpanded ? undefined : 4}>{book.description}</Text>
+              {book.description.length > 180 && (
+                <TouchableOpacity onPress={() => setDescExpanded((e) => !e)} activeOpacity={0.7}>
+                  <Text style={d.readMore}>{descExpanded ? 'Show less' : 'Read more'}</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          )}
 
           {/* ── Reading status ─────────────────────────── */}
           <Text style={d.sectionLabel}>STATUS</Text>
@@ -409,6 +423,10 @@ const d = StyleSheet.create({
     borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
     shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
   },
+
+  // ── About
+  about: { fontSize: 14.5, fontWeight: '500', color: '#463E33', lineHeight: 21 },
+  readMore: { fontSize: 13, fontWeight: '800', color: BROWN, marginTop: 8 },
 
   // ── Dates
   dates: { textAlign: 'center', marginTop: 26, fontSize: 12, fontWeight: '600', color: MUTE },

@@ -5,6 +5,7 @@ import { pushProfile } from '../lib/sync';
 import type { ShelfDef } from '../types/book';
 
 const EMPTY_PROFILE: UserProfile = {
+  username: null,
   librarySize: null,
   favouriteGenres: [],
   soulAnimal: null,
@@ -24,6 +25,7 @@ export interface AvatarConfig {
 }
 
 export interface UserProfile {
+  username: string | null;         // display name shown in greeting / profile
   librarySize: string | null;      // 'Under 20' | '20–50' | '50–150' | '150+'
   favouriteGenres: string[];       // genre labels selected in onboarding
   soulAnimal: string | null;       // e.g. 'Fox'
@@ -33,6 +35,7 @@ export interface UserProfile {
 
 interface UserState {
   profile: UserProfile;
+  setUsername: (name: string) => void;
   setLibrarySize: (value: string) => void;
   setFavouriteGenres: (genres: string[]) => void;
   toggleGenre: (genre: string) => void;
@@ -50,6 +53,11 @@ export const useUserStore = create<UserState>()(
   persist(
     (set, get) => ({
       profile: { ...EMPTY_PROFILE },
+
+      setUsername: (name) => {
+        set((s) => ({ profile: { ...s.profile, username: name.trim() || null } }));
+        pushProfile(get().profile);
+      },
 
       setLibrarySize: (value) => {
         set((s) => ({ profile: { ...s.profile, librarySize: value } }));

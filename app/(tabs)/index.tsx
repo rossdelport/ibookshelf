@@ -1,13 +1,19 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image as ExpoImage } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { AvatarFace } from '../../components/AvatarFace';
 import { ArrowIcon, PlayIcon, SearchIcon } from '../../components/icons';
+import { ANIMALS } from '../../constants/animals';
 import { useBookshelfStore } from '../../store/bookshelfStore';
+import { useUserStore } from '../../store/userStore';
 import { forceSync } from '../../lib/sync';
 import type { ShelfBook } from '../../types/book';
+
+// Fallback avatar if the builder was skipped (mirrors avatar.tsx / profile.tsx)
+const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317' };
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -104,7 +110,13 @@ export default function HomeScreen() {
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
   const updateShelfEntry = useBookshelfStore((s) => s.updateShelfEntry);
+  const profile = useUserStore((s) => s.profile);
   const [refreshing, setRefreshing] = useState(false);
+
+  const av = profile.avatar ?? DEFAULT_AVATAR;
+  const soulEmoji = (ANIMALS.find((a) => a.name === profile.soulAnimal) ?? ANIMALS.find((a) => a.name === 'Fox')!).emoji;
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -173,8 +185,10 @@ export default function HomeScreen() {
       {/* ── Topbar ───────────────────────────────────── */}
       <View style={ho.topbar}>
         <View style={ho.avatarWrap}>
-          <Image source={require('../../assets/images/av_me.png')} style={ho.avatar} resizeMode="cover" />
-          <View style={ho.soul}><Text style={ho.soulEmoji}>🦊</Text></View>
+          <View style={ho.avatar}>
+            <AvatarFace skin={av.skin} hairStyle={av.hairStyle} hairColor={av.hairColor} size={42} />
+          </View>
+          <View style={ho.soul}><Text style={ho.soulEmoji}>{soulEmoji}</Text></View>
         </View>
         <View style={ho.topActions}>
           <TouchableOpacity style={ho.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search your library">
@@ -185,7 +199,7 @@ export default function HomeScreen() {
 
       {/* ── Greeting ─────────────────────────────────── */}
       <View style={ho.greeting}>
-        <Text style={ho.greetingH1}>Good morning, Ross <Text style={ho.leaf}>🌿</Text></Text>
+        <Text style={ho.greetingH1}>{greet}{profile.username ? `, ${profile.username}` : ''} <Text style={ho.leaf}>🌿</Text></Text>
         <Text style={ho.streak}>📚 {owned.length} book{owned.length === 1 ? '' : 's'} in your library</Text>
       </View>
 

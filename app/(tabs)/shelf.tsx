@@ -1,17 +1,22 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Image, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { AvatarFace } from '../../components/AvatarFace';
 import { BookCover } from '../../components/BookCover';
 import { SyncStatus } from '../../components/SyncStatus';
 import { PlusIcon, SearchIcon } from '../../components/icons';
+import { ANIMALS } from '../../constants/animals';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
 import { usePrefsStore } from '../../store/prefsStore';
 import { forceSync } from '../../lib/sync';
 import { shelfChipColor } from '../../constants/shelfColors';
 import type { ReadingStatus, ShelfBook } from '../../types/book';
+
+// Fallback avatar if the builder was skipped (mirrors avatar.tsx / profile.tsx)
+const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317' };
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -82,6 +87,9 @@ export default function ShelfScreen() {
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
   const shelfDefs = useUserStore((s) => s.profile.shelves);
+  const avatarCfg = useUserStore((s) => s.profile.avatar) ?? DEFAULT_AVATAR;
+  const soulAnimal = useUserStore((s) => s.profile.soulAnimal);
+  const soulEmoji = (ANIMALS.find((a) => a.name === soulAnimal) ?? ANIMALS.find((a) => a.name === 'Fox')!).emoji;
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -134,8 +142,10 @@ export default function ShelfScreen() {
       {/* ── Topbar ───────────────────────────────────── */}
       <View style={[sl.topbar, { paddingTop: insets.top + 4 }]}>
         <View style={sl.avatarWrap}>
-          <Image source={require('../../assets/images/av_me.png')} style={sl.avatar} resizeMode="cover" />
-          <View style={sl.soul}><Text style={sl.soulEmoji}>🦊</Text></View>
+          <View style={sl.avatar}>
+            <AvatarFace skin={avatarCfg.skin} hairStyle={avatarCfg.hairStyle} hairColor={avatarCfg.hairColor} size={42} />
+          </View>
+          <View style={sl.soul}><Text style={sl.soulEmoji}>{soulEmoji}</Text></View>
         </View>
         <View style={sl.topActions}>
           <TouchableOpacity style={sl.iconBtn} activeOpacity={0.7} onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search your library">

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Keyboard, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -42,6 +42,8 @@ export default function ScanScreen() {
   const [book, setBook] = useState<Book | null>(null);
   const [flash, setFlash] = useState(false);
   const [focused, setFocused] = useState(true);
+  const [manualIsbn, setManualIsbn] = useState('');
+  const [kb, setKb] = useState(0); // keyboard height, to lift the sheet above it
 
   const lock = useRef(false);
   const sweep = useRef(new Animated.Value(0)).current;
@@ -67,6 +69,15 @@ export default function ScanScreen() {
       return () => setFocused(false);
     }, []),
   );
+
+  // Track keyboard height so the result sheet (manual ISBN entry) lifts above it.
+  useEffect(() => {
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const s = Keyboard.addListener(showEvt, (e) => setKb(e.endCoordinates?.height ?? 0));
+    const h = Keyboard.addListener(hideEvt, () => setKb(0));
+    return () => { s.remove(); h.remove(); };
+  }, []);
 
   // Scan line + spinner loops while actively aiming / identifying
   useEffect(() => {
@@ -98,12 +109,10 @@ export default function ScanScreen() {
     }
   }, [added, checkScale]);
 
-  const handleBarcode = useCallback(async ({ data }: BarcodeScanningResult) => {
-    if (lock.current) return;
-    lock.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // caught a barcode
+  // Shared lookup used by both barcode scans and manual ISBN entry.
+  const identify = useCallback(async (code: string) => {
     setMode('identifying');
-    const found = await lookupBookByIsbn(data);
+    const found = await lookupBookByIsbn(code);
     if (!found) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setMode('notfound');
@@ -117,7 +126,22 @@ export default function ScanScreen() {
     setMode(owned ? 'owned' : 'result');
   }, [getShelfEntry]);
 
-  const reset = () => { lock.current = false; setBook(null); setMode('aim'); };
+  const handleBarcode = useCallback(({ data }: BarcodeScanningResult) => {
+    if (lock.current) return;
+    lock.current = true;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // caught a barcode
+    identify(data);
+  }, [identify]);
+
+  const cleanIsbn = manualIsbn.replace(/[^0-9Xx]/g, '');
+  const lookupManual = () => {
+    if (cleanIsbn.length < 10) return;
+    Keyboard.dismiss();
+    lock.current = true;
+    identify(cleanIsbn);
+  };
+
+  const reset = () => { lock.current = false; setBook(null); setManualIsbn(''); setMode('aim'); };
 
   // ✕ — cancel the scan and leave the camera. reset() clears any open result
   // sheet so the scanner is fresh next time; navigating away blurs the tab,
@@ -244,7 +268,7 @@ export default function ScanScreen() {
 
       {/* ── Result / confirmation sheet ───────────────── */}
       {showSheet && (
-        <Animated.View style={[sc.sheet, { paddingBottom: insets.bottom + 16, transform: [{ translateY: sheetY }] }]}>
+        <Animated.View style={[sc.sheet, { paddingBottom: insets.bottom + 16, marginBottom: kb, transform: [{ translateY: sheetY }] }]}>
           {/* New book found */}
           {mode === 'result' && book && (
             <>
@@ -291,9 +315,30 @@ export default function ScanScreen() {
           {mode === 'notfound' && (
             <View style={sc.notfound}>
               <Text style={sc.notfoundTitle}>Couldn't identify that book</Text>
-              <Text style={sc.notfoundText}>Make sure the barcode is inside the frame and well lit, then try again.</Text>
-              <TouchableOpacity style={[sc.act, sc.actShelf, { alignSelf: 'stretch', marginTop: 18 }]} onPress={reset} activeOpacity={0.85}>
-                <Text style={sc.actShelfText}>Scan again</Text>
+              <Text style={sc.notfoundText}>Make sure the barcode is inside the frame and well lit — or type the ISBN printed under it.</Text>
+              <View style={sc.isbnRow}>
+                <TextInput
+                  style={sc.isbnInput}
+                  value={manualIsbn}
+                  onChangeText={setManualIsbn}
+                  placeholder="Enter ISBN"
+                  placeholderTextColor={MUTE}
+                  keyboardType="number-pad"
+                  returnKeyType="search"
+                  onSubmitEditing={lookupManual}
+                  maxLength={17}
+                />
+                <TouchableOpacity
+                  style={[sc.isbnBtn, cleanIsbn.length < 10 && sc.isbnBtnDisabled]}
+                  onPress={lookupManual}
+                  disabled={cleanIsbn.length < 10}
+                  activeOpacity={0.85}
+                >
+                  <Text style={sc.isbnBtnText}>Look up</Text>
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity style={[sc.act, sc.actWish, { alignSelf: 'stretch', marginTop: 12 }]} onPress={reset} activeOpacity={0.85}>
+                <Text style={sc.actWishText}>Scan again</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -441,6 +486,14 @@ const sc = StyleSheet.create({
   notfound: { alignItems: 'center' },
   notfoundTitle: { fontFamily: 'Georgia', fontSize: 20, fontWeight: '600', color: INK, marginTop: 4 },
   notfoundText: { fontSize: 13.5, fontWeight: '600', color: MUTE, textAlign: 'center', lineHeight: 19, marginTop: 8 },
+  isbnRow: { flexDirection: 'row', alignSelf: 'stretch', gap: 10, marginTop: 18 },
+  isbnInput: {
+    flex: 1, backgroundColor: '#F6EFE2', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
+    fontSize: 15.5, fontWeight: '700', color: INK, letterSpacing: 0.3,
+  },
+  isbnBtn: { backgroundColor: AMBER, borderRadius: 14, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
+  isbnBtnDisabled: { backgroundColor: '#EFE7D8' },
+  isbnBtnText: { fontSize: 14.5, fontWeight: '800', color: WHITE },
 
   // ── Confirmation
   done: { alignItems: 'center' },

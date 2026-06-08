@@ -57,6 +57,7 @@ export interface ProfileRow {
 }
 
 interface ProfileInput {
+  username: string | null;
   librarySize: string | null;
   favouriteGenres: string[];
   soulAnimal: string | null;
@@ -71,6 +72,7 @@ type PendingBook =
 
 interface ProfilePending {
   id: string;
+  username: string | null;
   library_size: string | null;
   favourite_genres: string[];
   soul_animal: string | null;
@@ -175,6 +177,7 @@ export function pushProfile(profile: ProfileInput) {
   if (!currentUserId) return;
   queue.profile = {
     id: currentUserId,
+    username: profile.username,
     library_size: profile.librarySize,
     favourite_genres: profile.favouriteGenres,
     soul_animal: profile.soulAnimal,

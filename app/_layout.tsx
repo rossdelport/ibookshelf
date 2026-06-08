@@ -17,6 +17,7 @@ async function handleSignedIn(userId: string) {
   const local = useUserStore.getState().profile;
   const rp = remote.profile;
   const mergedProfile = {
+    username: rp?.username ?? local.username,
     librarySize: rp?.library_size ?? local.librarySize,
     favouriteGenres: rp?.favourite_genres && rp.favourite_genres.length ? rp.favourite_genres : local.favouriteGenres,
     soulAnimal: rp?.soul_animal ?? local.soulAnimal,
