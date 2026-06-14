@@ -1,22 +1,34 @@
 import { View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Rect } from 'react-native-svg';
 import { colors } from '../constants/theme';
 
-// Stacked-books brand mark — matches the app icon / website favicon. Pass
-// `tile` to render it inside the charcoal rounded square (an app-icon emblem).
-export function Logo({ size = 96, color = '#E8A838', tile = false, tileColor = colors.ink1 }: { size?: number; color?: string; tile?: boolean; tileColor?: string }) {
-  const glyph = size * (tile ? 0.6 : 1);
-  const books = (
-    <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none">
-      <Rect x={3} y={4} width={4.5} height={16} rx={1.4} stroke={color} strokeWidth={1.8} />
-      <Rect x={9.5} y={4} width={4.5} height={16} rx={1.4} stroke={color} strokeWidth={1.8} />
-      <Path d="m16.4 5 3.4 1-2.9 14.2-3.4-1L16.4 5Z" stroke={color} strokeWidth={1.8} strokeLinejoin="round" />
-    </Svg>
-  );
-  if (!tile) return books;
+// Pastel five-book-spine brand mark — matches the app icon. Pass `tile` to set
+// it on a soft rounded card (an in-app emblem).
+const SPINES = ['#E7CBA0', '#9DB4CB', '#B3A7CD', '#D4A7B6', '#A9C3A4'];
+
+export function Logo({ size = 96, tile = false, tileColor = colors.card }: { size?: number; tile?: boolean; tileColor?: string }) {
+  const glyph = size * (tile ? 0.78 : 1);
+
+  // Geometry in a 100×100 viewBox: 5 spines centred, the last leaning left.
+  const w = 9.4, h = 33, gap = 3.4, r = 3, n = 5;
+  const total = n * w + (n - 1) * gap;
+  const x0 = (100 - total) / 2;
+  const top = (100 - h) / 2;
+
+  const spines = SPINES.map((c, i) => {
+    const x = x0 + i * (w + gap);
+    if (i === n - 1) {
+      const px = x + w / 2, py = top + h * 0.94;
+      return <Rect key={i} x={x} y={top} width={w} height={h} rx={r} fill={c} transform={`rotate(-13 ${px} ${py})`} />;
+    }
+    return <Rect key={i} x={x} y={top} width={w} height={h} rx={r} fill={c} />;
+  });
+
+  const svg = <Svg width={glyph} height={glyph} viewBox="0 0 100 100">{spines}</Svg>;
+  if (!tile) return svg;
   return (
     <View style={{ width: size, height: size, borderRadius: size * 0.26, backgroundColor: tileColor, alignItems: 'center', justifyContent: 'center' }}>
-      {books}
+      {svg}
     </View>
   );
 }
