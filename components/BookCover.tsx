@@ -34,7 +34,7 @@ function ReadingOverlay({ pct }: { pct: number }) {
   return (
     <>
       <Svg width={11} height={23} style={bc.mark} viewBox="0 0 11 23">
-        <Polygon points="0,0 11,0 11,23 5.5,18 0,23" fill="#E8A838" />
+        <Polygon points="0,0 11,0 11,23 5.5,18 0,23" fill="#FFFFFF" />
       </Svg>
       <View style={bc.prog}>
         <View style={[bc.progFill, { width: `${Math.round(pct * 100)}%` }]} />
@@ -177,6 +177,6 @@ const bc = StyleSheet.create({
     opacity: 0.85,
   },
   mark: { position: 'absolute', top: -1, right: 13, zIndex: 3 },
-  prog: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(0,0,0,0.32)', zIndex: 3 },
-  progFill: { height: '100%', backgroundColor: '#E8A838' },
+  prog: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(0,0,0,0.42)', zIndex: 3 },
+  progFill: { height: '100%', backgroundColor: '#FFFFFF' },
 });

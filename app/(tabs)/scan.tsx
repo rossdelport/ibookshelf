@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Keyboard, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Easing, Keyboard, Platform, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
@@ -11,25 +11,13 @@ import { CheckIcon, CloseIcon, FlashIcon, HeartIcon, ShelfIcon } from '../../com
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
 import { lookupBookByIsbn } from '../../lib/bookLookup';
+import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 import type { Book } from '../../types/book';
 
-// ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
-const INK   = '#332C24';
-const MUTE  = '#A89A88';
-const BROWN = '#8B5E3C';
-const AMBER = '#E8A838';
 const WHITE = '#FFFFFF';
-const GREEN = '#5BA66E';
-const RED   = '#E0506B';
-
+const CAM_BG = '#100E0C';
 const RETICLE_H = 300;
 
-// 'aim' → camera live, scanning for a barcode
-// 'identifying' → barcode caught, looking it up
-// 'result' → new book identified, offer to add
-// 'owned' → already in the library (the duplicate-check payoff)
-// 'shelf' / 'wishlist' → confirmation after adding
-// 'notfound' → barcode read but no match
 type Mode = 'aim' | 'identifying' | 'result' | 'owned' | 'shelf' | 'wishlist' | 'notfound';
 
 export default function ScanScreen() {
@@ -43,11 +31,11 @@ export default function ScanScreen() {
   const [flash, setFlash] = useState(false);
   const [focused, setFocused] = useState(true);
   const [manualIsbn, setManualIsbn] = useState('');
-  const [kb, setKb] = useState(0); // keyboard height, to lift the sheet above it
+  const [kb, setKb] = useState(0);
 
   const lock = useRef(false);
   const sweep = useRef(new Animated.Value(0)).current;
-  const spin  = useRef(new Animated.Value(0)).current;
+  const spin = useRef(new Animated.Value(0)).current;
   const sheetY = useRef(new Animated.Value(34)).current;
   const checkScale = useRef(new Animated.Value(0)).current;
 
@@ -55,22 +43,12 @@ export default function ScanScreen() {
   const added = mode === 'shelf' || mode === 'wishlist';
   const scanning = mode === 'aim';
 
-  // Ask for camera access on first mount
   useEffect(() => {
     if (permission && !permission.granted && permission.canAskAgain) requestPermission();
   }, [permission, requestPermission]);
 
-  // Power the camera down whenever the Scan tab loses focus (after ✕ or a tab
-  // switch) and back on when it returns — so the camera never runs in the
-  // background.
-  useFocusEffect(
-    useCallback(() => {
-      setFocused(true);
-      return () => setFocused(false);
-    }, []),
-  );
+  useFocusEffect(useCallback(() => { setFocused(true); return () => setFocused(false); }, []));
 
-  // Track keyboard height so the result sheet (manual ISBN entry) lifts above it.
   useEffect(() => {
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
@@ -79,21 +57,17 @@ export default function ScanScreen() {
     return () => { s.remove(); h.remove(); };
   }, []);
 
-  // Scan line + spinner loops while actively aiming / identifying
   useEffect(() => {
     if (mode !== 'aim' && mode !== 'identifying') return;
-    const line = Animated.loop(
-      Animated.sequence([
-        Animated.timing(sweep, { toValue: 1, duration: 650, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(sweep, { toValue: 0, duration: 650, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ]),
-    );
+    const line = Animated.loop(Animated.sequence([
+      Animated.timing(sweep, { toValue: 1, duration: 650, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      Animated.timing(sweep, { toValue: 0, duration: 650, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+    ]));
     const spinner = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 700, easing: Easing.linear, useNativeDriver: true }));
     line.start(); spinner.start();
     return () => { line.stop(); spinner.stop(); };
   }, [mode, sweep, spin]);
 
-  // Sheet rise when a result appears
   useEffect(() => {
     if (showSheet) {
       sheetY.setValue(34);
@@ -101,7 +75,6 @@ export default function ScanScreen() {
     }
   }, [showSheet, sheetY]);
 
-  // Confirmation check pop
   useEffect(() => {
     if (added) {
       checkScale.setValue(0);
@@ -109,7 +82,6 @@ export default function ScanScreen() {
     }
   }, [added, checkScale]);
 
-  // Shared lookup used by both barcode scans and manual ISBN entry.
   const identify = useCallback(async (code: string) => {
     setMode('identifying');
     const found = await lookupBookByIsbn(code);
@@ -119,7 +91,6 @@ export default function ScanScreen() {
       return;
     }
     setBook(found);
-    // Duplicate check — owned means a shelf entry that isn't merely a wishlist item.
     const entry = getShelfEntry(found.id);
     const owned = !!entry && entry.status !== 'wishlist';
     Haptics.notificationAsync(owned ? Haptics.NotificationFeedbackType.Warning : Haptics.NotificationFeedbackType.Success);
@@ -129,7 +100,7 @@ export default function ScanScreen() {
   const handleBarcode = useCallback(({ data }: BarcodeScanningResult) => {
     if (lock.current) return;
     lock.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); // caught a barcode
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     identify(data);
   }, [identify]);
 
@@ -142,10 +113,6 @@ export default function ScanScreen() {
   };
 
   const reset = () => { lock.current = false; setBook(null); setManualIsbn(''); setMode('aim'); };
-
-  // ✕ — cancel the scan and leave the camera. reset() clears any open result
-  // sheet so the scanner is fresh next time; navigating away blurs the tab,
-  // which powers the camera down via `active`.
   const exit = () => { reset(); router.navigate('/(tabs)'); };
 
   const addToLibrary = (status: 'want_to_read' | 'wishlist') => {
@@ -154,22 +121,17 @@ export default function ScanScreen() {
     setMode(status === 'wishlist' ? 'wishlist' : 'shelf');
   };
 
-  // Which custom shelf(es) an already-owned book is filed on (e.g. "Mum & Dad").
   const ownedShelves = book ? getShelfEntry(book.id)?.shelves ?? [] : [];
-  const ownedShelfLabel = ownedShelves
-    .map((n) => {
-      const def = shelfDefs.find((sh) => sh.name === n);
-      return def ? `${def.emoji} ${def.name}` : n;
-    })
-    .join(', ');
+  const ownedShelfLabel = ownedShelves.map((n) => {
+    const def = shelfDefs.find((sh) => sh.name === n);
+    return def ? `${def.emoji} ${def.name}` : n;
+  }).join(', ');
 
   const lineY = sweep.interpolate({ inputRange: [0, 1], outputRange: [RETICLE_H * 0.04, RETICLE_H * 0.96] });
   const spinDeg = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-  const cornerColor = mode === 'identifying' ? AMBER : WHITE;
 
   return (
     <View style={sc.root}>
-      {/* Light status-bar icons over the dark camera (only while focused). */}
       {focused && <StatusBar style="light" />}
 
       {/* ── Camera (live) ─────────────────────────────── */}
@@ -178,8 +140,6 @@ export default function ScanScreen() {
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={flash}
-          // Camera runs only while aiming AND the tab is focused; powers down
-          // after a scan, on leaving via ✕, or switching tabs.
           active={scanning && focused}
           barcodeScannerSettings={{ barcodeTypes: ['ean13', 'upc_a', 'ean8'] }}
           onBarcodeScanned={scanning ? handleBarcode : undefined}
@@ -187,9 +147,7 @@ export default function ScanScreen() {
       ) : (
         <View style={[StyleSheet.absoluteFill, sc.permFill]}>
           <Text style={sc.permText}>
-            {permission && !permission.canAskAgain
-              ? 'Camera access is off. Enable it in Settings to scan books.'
-              : 'iBookshelf needs your camera to scan book barcodes.'}
+            {permission && !permission.canAskAgain ? 'Camera access is off. Enable it in Settings to scan books.' : 'Fable needs your camera to scan book barcodes.'}
           </Text>
           {permission && !permission.granted && permission.canAskAgain && (
             <TouchableOpacity style={sc.permBtn} onPress={requestPermission} activeOpacity={0.85}>
@@ -199,19 +157,14 @@ export default function ScanScreen() {
         </View>
       )}
 
-      {/* Amber glow + vignette over the live feed */}
+      {/* Vignette over the live feed */}
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
         <Defs>
-          <RadialGradient id="glow" cx="50%" cy="46%" rx="60%" ry="44%">
-            <Stop offset="0" stopColor={AMBER} stopOpacity="0.10" />
-            <Stop offset="1" stopColor={AMBER} stopOpacity="0" />
-          </RadialGradient>
           <RadialGradient id="vig" cx="50%" cy="50%" rx="75%" ry="75%">
             <Stop offset="0.55" stopColor="#000" stopOpacity="0" />
             <Stop offset="1" stopColor="#000" stopOpacity="0.6" />
           </RadialGradient>
         </Defs>
-        <Rect width="100%" height="100%" fill="url(#glow)" />
         <Rect width="100%" height="100%" fill="url(#vig)" />
       </Svg>
 
@@ -221,18 +174,12 @@ export default function ScanScreen() {
           <CloseIcon color={WHITE} />
         </TouchableOpacity>
         <Text style={sc.topTitle}>Scan a Book</Text>
-        <TouchableOpacity
-          style={[sc.topBtn, flash && sc.topBtnOn]}
-          onPress={() => setFlash((f) => !f)}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={flash ? 'Turn flash off' : 'Turn flash on'}
-        >
-          <FlashIcon color={flash ? INK : WHITE} />
+        <TouchableOpacity style={[sc.topBtn, flash && sc.topBtnOn]} onPress={() => setFlash((f) => !f)} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={flash ? 'Turn flash off' : 'Turn flash on'}>
+          <FlashIcon color={flash ? colors.ink1 : WHITE} />
         </TouchableOpacity>
       </View>
 
-      {/* ── "You own this" banner (top third) when a scan is a duplicate ─ */}
+      {/* ── "You own this" banner ─────────────────────── */}
       {mode === 'owned' && (
         <View style={[sc.ownedBanner, { top: insets.top + 70 }]} pointerEvents="none">
           <Text style={sc.ownedBannerEmoji}>📚</Text>
@@ -245,10 +192,10 @@ export default function ScanScreen() {
       {!showSheet && (
         <View style={sc.center} pointerEvents="none">
           <View style={sc.reticle}>
-            <View style={[sc.corner, sc.cornerTL, { borderColor: cornerColor }]} />
-            <View style={[sc.corner, sc.cornerTR, { borderColor: cornerColor }]} />
-            <View style={[sc.corner, sc.cornerBL, { borderColor: cornerColor }]} />
-            <View style={[sc.corner, sc.cornerBR, { borderColor: cornerColor }]} />
+            <View style={[sc.corner, sc.cornerTL]} />
+            <View style={[sc.corner, sc.cornerTR]} />
+            <View style={[sc.corner, sc.cornerBL]} />
+            <View style={[sc.corner, sc.cornerBR]} />
             {(scanning || mode === 'identifying') && permission?.granted && (
               <Animated.View style={[sc.scanLine, { transform: [{ translateY: lineY }] }]} />
             )}
@@ -260,7 +207,7 @@ export default function ScanScreen() {
           {mode === 'identifying' && (
             <View style={sc.hint}>
               <Animated.View style={[sc.spinner, { transform: [{ rotate: spinDeg }] }]} />
-              <Text style={[sc.hintText, { color: '#FBE6BE' }]}>Identifying…</Text>
+              <Text style={sc.hintText}>Identifying…</Text>
             </View>
           )}
         </View>
@@ -269,19 +216,18 @@ export default function ScanScreen() {
       {/* ── Result / confirmation sheet ───────────────── */}
       {showSheet && (
         <Animated.View style={[sc.sheet, { paddingBottom: insets.bottom + 16, marginBottom: kb, transform: [{ translateY: sheetY }] }]}>
-          {/* New book found */}
           {mode === 'result' && book && (
             <>
               <View style={sc.tag}><View style={sc.tagDot} /><Text style={sc.tagText}>Match found</Text></View>
-              <BookRow book={book} large />
+              <BookRow book={book} />
               <View style={sc.actions}>
-                <TouchableOpacity style={[sc.act, sc.actShelf]} onPress={() => addToLibrary('want_to_read')} activeOpacity={0.85}>
-                  <ShelfIcon color={WHITE} size={20} sw={1.9} />
-                  <Text style={sc.actShelfText}>Add to Shelf</Text>
+                <TouchableOpacity style={[sc.act, sc.actSolid]} onPress={() => addToLibrary('want_to_read')} activeOpacity={0.9}>
+                  <ShelfIcon color={colors.accentText} size={20} sw={1.9} />
+                  <Text style={sc.actSolidText}>Add to Shelf</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[sc.act, sc.actWish]} onPress={() => addToLibrary('wishlist')} activeOpacity={0.85}>
-                  <HeartIcon color={BROWN} size={20} />
-                  <Text style={sc.actWishText}>Add to Wishlist</Text>
+                <TouchableOpacity style={[sc.act, sc.actGhost]} onPress={() => addToLibrary('wishlist')} activeOpacity={0.9}>
+                  <HeartIcon color={colors.ink2} size={20} />
+                  <Text style={sc.actGhostText}>Wishlist</Text>
                 </TouchableOpacity>
               </View>
               <TouchableOpacity onPress={reset} activeOpacity={0.7}>
@@ -290,60 +236,40 @@ export default function ScanScreen() {
             </>
           )}
 
-          {/* Already owned — the duplicate-check payoff */}
           {mode === 'owned' && book && (
             <>
               <View style={[sc.tag, sc.tagOwned]}><Text style={[sc.tagText, sc.tagTextOwned]}>Already in your library</Text></View>
-              <BookRow book={book} large />
+              <BookRow book={book} />
               <Text style={sc.ownedNote}>
-                {ownedShelfLabel
-                  ? `You already own this — it's on your ${ownedShelfLabel} shelf. No need to buy it again. 🎉`
-                  : 'You already own this — no need to buy it again. 🎉'}
+                {ownedShelfLabel ? `You already own this — it's on your ${ownedShelfLabel} shelf. No need to buy it again. 🎉` : 'You already own this — no need to buy it again. 🎉'}
               </Text>
               <View style={sc.actions}>
-                <TouchableOpacity style={[sc.act, sc.actWish]} onPress={reset} activeOpacity={0.85}>
-                  <Text style={sc.actWishText}>Scan again</Text>
+                <TouchableOpacity style={[sc.act, sc.actGhost]} onPress={reset} activeOpacity={0.9}>
+                  <Text style={sc.actGhostText}>Scan again</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[sc.act, sc.actSolid]} onPress={() => router.navigate('/(tabs)/shelf')} activeOpacity={0.85}>
+                <TouchableOpacity style={[sc.act, sc.actSolid]} onPress={() => router.navigate('/(tabs)/shelf')} activeOpacity={0.9}>
                   <Text style={sc.actSolidText}>View Shelf</Text>
                 </TouchableOpacity>
               </View>
             </>
           )}
 
-          {/* Couldn't identify */}
           {mode === 'notfound' && (
             <View style={sc.notfound}>
               <Text style={sc.notfoundTitle}>Couldn't identify that book</Text>
               <Text style={sc.notfoundText}>Make sure the barcode is inside the frame and well lit — or type the ISBN printed under it.</Text>
               <View style={sc.isbnRow}>
-                <TextInput
-                  style={sc.isbnInput}
-                  value={manualIsbn}
-                  onChangeText={setManualIsbn}
-                  placeholder="Enter ISBN"
-                  placeholderTextColor={MUTE}
-                  keyboardType="number-pad"
-                  returnKeyType="search"
-                  onSubmitEditing={lookupManual}
-                  maxLength={17}
-                />
-                <TouchableOpacity
-                  style={[sc.isbnBtn, cleanIsbn.length < 10 && sc.isbnBtnDisabled]}
-                  onPress={lookupManual}
-                  disabled={cleanIsbn.length < 10}
-                  activeOpacity={0.85}
-                >
-                  <Text style={sc.isbnBtnText}>Look up</Text>
+                <TextInput style={sc.isbnInput} value={manualIsbn} onChangeText={setManualIsbn} placeholder="Enter ISBN" placeholderTextColor={colors.ink3} keyboardType="number-pad" returnKeyType="search" onSubmitEditing={lookupManual} maxLength={17} />
+                <TouchableOpacity style={[sc.isbnBtn, cleanIsbn.length < 10 && sc.isbnBtnDisabled]} onPress={lookupManual} disabled={cleanIsbn.length < 10} activeOpacity={0.9}>
+                  <Text style={[sc.isbnBtnText, cleanIsbn.length < 10 && sc.isbnBtnTextDisabled]}>Look up</Text>
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity style={[sc.act, sc.actWish, { alignSelf: 'stretch', marginTop: 12 }]} onPress={reset} activeOpacity={0.85}>
-                <Text style={sc.actWishText}>Scan again</Text>
+              <TouchableOpacity style={[sc.act, sc.actGhost, { alignSelf: 'stretch', marginTop: 12 }]} onPress={reset} activeOpacity={0.9}>
+                <Text style={sc.actGhostText}>Scan again</Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Added confirmation */}
           {added && book && (
             <View style={sc.done}>
               <Animated.View style={[sc.doneCheck, { transform: [{ scale: checkScale }] }]}>
@@ -358,14 +284,10 @@ export default function ScanScreen() {
                 </View>
               </View>
               <View style={sc.actions}>
-                <TouchableOpacity style={[sc.act, sc.actWish]} onPress={reset} activeOpacity={0.85}>
-                  <Text style={sc.actWishText}>Scan another</Text>
+                <TouchableOpacity style={[sc.act, sc.actGhost]} onPress={reset} activeOpacity={0.9}>
+                  <Text style={sc.actGhostText}>Scan another</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[sc.act, sc.actSolid]}
-                  onPress={() => router.navigate(mode === 'shelf' ? '/(tabs)/shelf' : '/(tabs)/wishlist')}
-                  activeOpacity={0.85}
-                >
+                <TouchableOpacity style={[sc.act, sc.actSolid]} onPress={() => router.navigate(mode === 'shelf' ? '/(tabs)/shelf' : '/(tabs)/wishlist')} activeOpacity={0.9}>
                   <Text style={sc.actSolidText}>{mode === 'shelf' ? 'View Shelf' : 'View Wishlist'}</Text>
                 </TouchableOpacity>
               </View>
@@ -377,25 +299,17 @@ export default function ScanScreen() {
   );
 }
 
-// ── Book cover image with emoji fallback ───────────────────────────────────
-function BookCover({ book, small, large }: { book: Book; small?: boolean; large?: boolean }) {
-  const style = small ? sc.doneRowImg : large ? sc.foundImg : sc.foundImg;
-  if (book.coverUrl) {
-    return <Image source={{ uri: book.coverUrl }} style={style} contentFit="cover" transition={200} cachePolicy="memory-disk" />;
-  }
-  return (
-    <View style={[style, sc.coverFallback]}>
-      <Text style={{ fontSize: small ? 20 : 30 }}>📖</Text>
-    </View>
-  );
+function BookCover({ book, small }: { book: Book; small?: boolean }) {
+  const style = small ? sc.doneRowImg : sc.foundImg;
+  if (book.coverUrl) return <Image source={{ uri: book.coverUrl }} style={style} contentFit="cover" transition={200} cachePolicy="memory-disk" />;
+  return <View style={[style, sc.coverFallback]}><Text style={{ fontSize: small ? 20 : 30 }}>📖</Text></View>;
 }
 
-// ── Found book row (cover + title + author + meta) ─────────────────────────
-function BookRow({ book }: { book: Book; large?: boolean }) {
+function BookRow({ book }: { book: Book }) {
   const meta = [book.publishedYear, book.pageCount ? `${book.pageCount} pp` : null].filter(Boolean).join(' · ');
   return (
     <View style={sc.found}>
-      <BookCover book={book} large />
+      <BookCover book={book} />
       <View style={sc.foundTxt}>
         <Text style={sc.foundTitle} numberOfLines={3}>{book.title}</Text>
         <Text style={sc.foundAuthor} numberOfLines={1}>{book.author}</Text>
@@ -406,105 +320,80 @@ function BookRow({ book }: { book: Book; large?: boolean }) {
 }
 
 const sc = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#100C09' },
+  root: { flex: 1, backgroundColor: CAM_BG },
 
-  // ── Permission fallback
-  permFill: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36, gap: 18, backgroundColor: '#100C09' },
-  permText: { color: 'rgba(255,255,255,0.85)', fontSize: 15, fontWeight: '600', textAlign: 'center', lineHeight: 22 },
-  permBtn: { backgroundColor: AMBER, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26 },
-  permBtnText: { color: WHITE, fontSize: 15, fontWeight: '800' },
+  permFill: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36, gap: 18, backgroundColor: CAM_BG },
+  permText: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.medium, ...ty.body, textAlign: 'center' },
+  permBtn: { backgroundColor: colors.card, borderRadius: 999, paddingVertical: 13, paddingHorizontal: 26 },
+  permBtnText: { color: colors.ink1, fontFamily: fonts.semibold, ...ty.label },
 
   // ── Top bar
   top: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 12, zIndex: 4 },
-  topBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.12)', alignItems: 'center', justifyContent: 'center' },
-  topBtnOn: { backgroundColor: AMBER },
-  topTitle: { fontSize: 16, fontWeight: '800', color: WHITE, letterSpacing: -0.2 },
+  topBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' },
+  topBtnOn: { backgroundColor: WHITE },
+  topTitle: { fontFamily: fonts.semibold, fontSize: 16, color: WHITE },
 
-  // ── "You own this" banner (duplicate scan)
-  ownedBanner: {
-    position: 'absolute', left: 22, right: 22, alignItems: 'center', zIndex: 7,
-    backgroundColor: 'rgba(250,248,243,0.97)', borderRadius: 24, paddingVertical: 20, paddingHorizontal: 22,
-    borderWidth: 1.5, borderColor: AMBER,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 22, elevation: 10,
-  },
+  // ── Owned banner
+  ownedBanner: { position: 'absolute', left: 22, right: 22, alignItems: 'center', zIndex: 7, backgroundColor: colors.bg, borderRadius: radius.sheet, paddingVertical: 20, paddingHorizontal: 22, borderWidth: 1.5, borderColor: colors.accent, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 22, elevation: 10 },
   ownedBannerEmoji: { fontSize: 34 },
-  ownedBannerText: { fontSize: 22, fontWeight: '900', color: INK, marginTop: 8, letterSpacing: -0.4 },
-  ownedBannerSub: { fontSize: 14, fontWeight: '700', color: BROWN, marginTop: 4 },
+  ownedBannerText: { fontFamily: fonts.semibold, ...ty.titleSm, color: colors.ink1, marginTop: 8 },
+  ownedBannerSub: { fontFamily: fonts.medium, ...ty.body, color: colors.ink2, marginTop: 4 },
 
   // ── Reticle
   center: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
   reticle: { width: 224, height: RETICLE_H, zIndex: 3 },
-  corner: { position: 'absolute', width: 34, height: 34, opacity: 0.95 },
+  corner: { position: 'absolute', width: 34, height: 34, opacity: 0.95, borderColor: WHITE },
   cornerTL: { top: 0, left: 0, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 8 },
   cornerTR: { top: 0, right: 0, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 8 },
   cornerBL: { bottom: 0, left: 0, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 8 },
   cornerBR: { bottom: 0, right: 0, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 8 },
-  scanLine: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: '#F0BC5A', shadowColor: AMBER, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 8 },
+  scanLine: { position: 'absolute', left: 0, right: 0, height: 2, backgroundColor: WHITE, shadowColor: WHITE, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.7, shadowRadius: 8 },
 
-  // Hint
-  hint: {
-    position: 'absolute', bottom: 120, flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16,
-  },
-  hintText: { fontSize: 13, fontWeight: '700', color: WHITE },
-  spinner: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: 'rgba(232,168,56,0.35)', borderTopColor: AMBER },
+  hint: { position: 'absolute', bottom: 120, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 999, paddingVertical: 8, paddingHorizontal: 16 },
+  hintText: { fontFamily: fonts.medium, ...ty.bodySm, color: WHITE },
+  spinner: { width: 14, height: 14, borderRadius: 7, borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)', borderTopColor: WHITE },
 
   // ── Sheet
-  sheet: {
-    position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 6,
-    backgroundColor: '#FAF8F3', borderTopLeftRadius: 26, borderTopRightRadius: 26,
-    paddingHorizontal: 22, paddingTop: 22,
-    shadowColor: '#000', shadowOffset: { width: 0, height: -16 }, shadowOpacity: 0.4, shadowRadius: 40, elevation: 20,
-  },
-  tag: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 7, backgroundColor: '#E9F4EC', borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 },
-  tagDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: GREEN },
-  tagText: { fontSize: 12, fontWeight: '800', color: GREEN },
-  tagOwned: { backgroundColor: '#FBE4E8' },
-  tagTextOwned: { color: RED },
+  sheet: { position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 6, backgroundColor: colors.bg, borderTopLeftRadius: radius.sheet, borderTopRightRadius: radius.sheet, paddingHorizontal: 22, paddingTop: 22, shadowColor: '#000', shadowOffset: { width: 0, height: -16 }, shadowOpacity: 0.4, shadowRadius: 40, elevation: 20 },
+  tag: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 7, backgroundColor: colors.successSoft, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 11 },
+  tagDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.success },
+  tagText: { fontFamily: fonts.semibold, fontSize: 12, color: colors.success },
+  tagOwned: { backgroundColor: colors.dangerSoft },
+  tagTextOwned: { color: colors.danger },
 
   found: { flexDirection: 'row', gap: 16, alignItems: 'center', marginTop: 16 },
-  foundImg: { width: 72, height: 108, borderRadius: 5, backgroundColor: '#F6EFE2', shadowColor: '#5A3C23', shadowOffset: { width: 2, height: 6 }, shadowOpacity: 0.28, shadowRadius: 16 },
+  foundImg: { width: 72, height: 108, borderRadius: 6, backgroundColor: colors.chip },
   coverFallback: { alignItems: 'center', justifyContent: 'center' },
   foundTxt: { flex: 1, minWidth: 0 },
-  foundTitle: { fontFamily: 'Georgia', fontSize: 19, fontWeight: '600', lineHeight: 23, color: INK },
-  foundAuthor: { fontSize: 13.5, fontWeight: '700', color: BROWN, marginTop: 3 },
-  foundMeta: { fontSize: 12, fontWeight: '600', color: MUTE, marginTop: 6 },
+  foundTitle: { fontFamily: fonts.semibold, ...ty.section, color: colors.ink1 },
+  foundAuthor: { fontFamily: fonts.serifItalic, fontSize: 14, color: colors.ink2, marginTop: 3 },
+  foundMeta: { fontFamily: fonts.medium, ...ty.caption, color: colors.ink3, marginTop: 6 },
 
-  ownedNote: { fontSize: 13.5, fontWeight: '600', color: '#8a6a32', lineHeight: 19, marginTop: 16 },
+  ownedNote: { fontFamily: fonts.medium, ...ty.body, color: colors.ink2, marginTop: 16 },
 
   actions: { flexDirection: 'row', gap: 11, marginTop: 22 },
-  act: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 52, borderRadius: 15 },
-  actShelf: { backgroundColor: AMBER, shadowColor: '#E29A2A', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.34, shadowRadius: 20, elevation: 4 },
-  actShelfText: { fontSize: 14.5, fontWeight: '800', color: WHITE },
-  actWish: { backgroundColor: WHITE, borderWidth: 1.5, borderColor: 'rgba(139,94,60,0.22)' },
-  actWishText: { fontSize: 14.5, fontWeight: '800', color: BROWN },
-  actSolid: { backgroundColor: INK },
-  actSolidText: { fontSize: 14.5, fontWeight: '800', color: WHITE },
-  again: { textAlign: 'center', marginTop: 14, fontSize: 13, fontWeight: '700', color: MUTE },
+  act: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, height: 52, borderRadius: radius.button },
+  actSolid: { backgroundColor: colors.accent, ...shadow.button },
+  actSolidText: { fontFamily: fonts.semibold, ...ty.label, color: colors.accentText },
+  actGhost: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  actGhostText: { fontFamily: fonts.semibold, ...ty.label, color: colors.ink1 },
+  again: { textAlign: 'center', marginTop: 14, fontFamily: fonts.medium, ...ty.bodySm, color: colors.ink3 },
 
   // ── Couldn't identify
   notfound: { alignItems: 'center' },
-  notfoundTitle: { fontFamily: 'Georgia', fontSize: 20, fontWeight: '600', color: INK, marginTop: 4 },
-  notfoundText: { fontSize: 13.5, fontWeight: '600', color: MUTE, textAlign: 'center', lineHeight: 19, marginTop: 8 },
+  notfoundTitle: { fontFamily: fonts.semibold, ...ty.section, color: colors.ink1, marginTop: 4 },
+  notfoundText: { fontFamily: fonts.regular, ...ty.body, color: colors.ink3, textAlign: 'center', marginTop: 8 },
   isbnRow: { flexDirection: 'row', alignSelf: 'stretch', gap: 10, marginTop: 18 },
-  isbnInput: {
-    flex: 1, backgroundColor: '#F6EFE2', borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13,
-    fontSize: 15.5, fontWeight: '700', color: INK, letterSpacing: 0.3,
-  },
-  isbnBtn: { backgroundColor: AMBER, borderRadius: 14, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
-  isbnBtnDisabled: { backgroundColor: '#EFE7D8' },
-  isbnBtnText: { fontSize: 14.5, fontWeight: '800', color: WHITE },
+  isbnInput: { flex: 1, backgroundColor: colors.card, borderRadius: radius.card, paddingHorizontal: 14, paddingVertical: 13, fontFamily: fonts.medium, fontSize: 15.5, color: colors.ink1, borderWidth: 1, borderColor: colors.line },
+  isbnBtn: { backgroundColor: colors.accent, borderRadius: radius.card, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center' },
+  isbnBtnDisabled: { backgroundColor: colors.chip },
+  isbnBtnText: { fontFamily: fonts.semibold, ...ty.label, color: colors.accentText },
+  isbnBtnTextDisabled: { color: colors.ink3 },
 
   // ── Confirmation
   done: { alignItems: 'center' },
-  doneCheck: {
-    width: 60, height: 60, borderRadius: 30, backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center', marginTop: 4,
-    shadowColor: GREEN, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.4, shadowRadius: 24, elevation: 6,
-  },
-  doneTitle: { fontFamily: 'Georgia', fontSize: 21, fontWeight: '600', marginTop: 14, color: INK },
-  doneRow: {
-    flexDirection: 'row', gap: 14, alignItems: 'center', alignSelf: 'stretch',
-    backgroundColor: WHITE, borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)', borderRadius: 16, padding: 12, marginTop: 18,
-  },
-  doneRowImg: { width: 48, height: 72, borderRadius: 4, backgroundColor: '#F6EFE2', shadowColor: '#5A3C23', shadowOffset: { width: 1, height: 3 }, shadowOpacity: 0.22, shadowRadius: 9 },
+  doneCheck: { width: 60, height: 60, borderRadius: 30, backgroundColor: colors.success, alignItems: 'center', justifyContent: 'center', marginTop: 4, shadowColor: colors.success, shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.35, shadowRadius: 24, elevation: 6 },
+  doneTitle: { fontFamily: fonts.semibold, ...ty.section, marginTop: 14, color: colors.ink1 },
+  doneRow: { flexDirection: 'row', gap: 14, alignItems: 'center', alignSelf: 'stretch', backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, borderRadius: radius.card, padding: 12, marginTop: 18 },
+  doneRowImg: { width: 48, height: 72, borderRadius: 5, backgroundColor: colors.chip },
 });
