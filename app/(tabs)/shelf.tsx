@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { AvatarFace } from '../../components/AvatarFace';
 import { BookCover } from '../../components/BookCover';
+import { ProgressSheet } from '../../components/ProgressSheet';
 import { SyncStatus } from '../../components/SyncStatus';
 import { PlusIcon, SearchIcon } from '../../components/icons';
 import { ANIMALS } from '../../constants/animals';
@@ -43,6 +44,7 @@ export default function ShelfScreen() {
   const sort = usePrefsStore((s) => s.shelfSort);
   const setSort = usePrefsStore((s) => s.setShelfSort);
   const [refreshing, setRefreshing] = useState(false);
+  const [progressBook, setProgressBook] = useState<ShelfBook | null>(null);
 
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
@@ -202,20 +204,33 @@ export default function ShelfScreen() {
                 </View>
               ))
             ) : (
-              sorted.map((b) => (
-                <TouchableOpacity key={b.id} style={sl.listRow} activeOpacity={0.8} onPress={() => router.push({ pathname: '/book/[id]', params: { id: b.id } })}>
-                  <View style={sl.listCover}><BookCover title={b.title} author={b.author} coverUrl={b.coverUrl} /></View>
-                  <View style={sl.listText}>
-                    <Text style={sl.listTitle} numberOfLines={1}>{b.title}</Text>
-                    <Text style={sl.listAuthor} numberOfLines={1}>{b.author}</Text>
+              sorted.map((b) => {
+                const reading = b.shelf.status === 'reading';
+                const pct = reading && b.pageCount ? Math.round(Math.min((b.shelf.currentPage ?? 0) / b.pageCount, 1) * 100) : null;
+                return (
+                  <View key={b.id} style={sl.listRow}>
+                    <TouchableOpacity style={sl.listMain} activeOpacity={0.8} onPress={() => router.push({ pathname: '/book/[id]', params: { id: b.id } })}>
+                      <View style={sl.listCover}><BookCover title={b.title} author={b.author} coverUrl={b.coverUrl} /></View>
+                      <View style={sl.listText}>
+                        <Text style={sl.listTitle} numberOfLines={1}>{b.title}</Text>
+                        <Text style={sl.listAuthor} numberOfLines={1}>{b.author}</Text>
+                      </View>
+                    </TouchableOpacity>
+                    {reading ? (
+                      <Pressable style={sl.progPill} onPress={() => { Haptics.selectionAsync(); setProgressBook(b); }} hitSlop={6}>
+                        <Text style={sl.progPillText}>{pct != null ? `${pct}%` : 'Update'}</Text>
+                      </Pressable>
+                    ) : (
+                      <Text style={sl.listStatus}>{STATUS_DISPLAY[b.shelf.status]}</Text>
+                    )}
                   </View>
-                  <Text style={sl.listStatus}>{STATUS_DISPLAY[b.shelf.status]}</Text>
-                </TouchableOpacity>
-              ))
+                );
+              })
             )}
           </ScrollView>
         </>
       )}
+      <ProgressSheet book={progressBook} visible={!!progressBook} onClose={() => setProgressBook(null)} />
     </View>
   );
 }
@@ -260,12 +275,15 @@ const sl = StyleSheet.create({
 
   // ── List view
   listContent: { paddingHorizontal: 22, paddingTop: 6 },
-  listRow: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  listRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.line },
+  listMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14 },
   listCover: { width: 38 },
   listText: { flex: 1, minWidth: 0 },
   listTitle: { fontFamily: fonts.semibold, ...ty.cardTitle, color: colors.ink1 },
   listAuthor: { fontFamily: fonts.serifItalic, fontSize: 13.5, color: colors.ink2, marginTop: 1 },
   listStatus: { fontFamily: fonts.medium, ...ty.caption, color: colors.ink3 },
+  progPill: { backgroundColor: colors.chip, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12 },
+  progPillText: { fontFamily: fonts.semibold, ...ty.caption, color: colors.ink1 },
 
   // ── Grid (clean covers, no plank)
   shelves: { flex: 1 },
