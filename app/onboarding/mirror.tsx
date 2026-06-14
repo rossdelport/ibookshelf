@@ -2,6 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { CountUp } from '../../components/anim';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 
 const TOTAL_STEPS = 9;
@@ -41,15 +42,13 @@ export default function MirrorScreen() {
         </View>
 
         <View style={mir.saveCard}>
-          <Text style={mir.saveAmount}>$100+</Text>
+          <CountUp to={100} prefix="$" suffix="+" style={mir.saveAmount} />
           <Text style={mir.saveLabel}>
             {'is what readers typically waste on '}
             <Text style={mir.saveBold}>duplicate books</Text>
             {' — money Fable helps you keep.'}
           </Text>
         </View>
-
-        <Text style={mir.tagline}>Fable remembers, so you never buy twice.</Text>
       </View>
 
       <View style={mir.footer}>
@@ -76,7 +75,7 @@ const mir = StyleSheet.create({
   headline: { fontFamily: fonts.light, ...ty.hero, color: colors.ink1 },
 
   statCard: { flexDirection: 'row', backgroundColor: colors.card, borderRadius: radius.card, overflow: 'hidden', borderWidth: 1, borderColor: colors.line, ...shadow.cardSoft },
-  statBar: { width: 4, backgroundColor: colors.accent },
+  statBar: { width: 4, backgroundColor: colors.success },
   statText: { flex: 1, fontFamily: fonts.regular, ...ty.body, color: colors.ink2, paddingVertical: 18, paddingHorizontal: 16 },
   statBold: { fontFamily: fonts.semibold, color: colors.ink1 },
 

@@ -1,17 +1,22 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useUserStore } from '../../store/userStore';
 import { ANIMALS } from '../../constants/animals';
+import { AvatarFace } from '../../components/AvatarFace';
+import { Breathing } from '../../components/anim';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
+
+const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317', shirtColor: '#232A33' };
+const SIZE = 132;
 
 // Final onboarding screen — no progress dots, no back. Celebrates and enters the app.
 export default function AllSetScreen() {
   const { profile } = useUserStore();
   const soul = ANIMALS.find((a) => a.name === profile.soulAnimal) ?? ANIMALS.find((a) => a.name === 'Fox')!;
+  const avatar = profile.avatar ?? DEFAULT_AVATAR;
   const name = profile.username?.trim();
 
   const anim = useRef(new Animated.Value(0)).current;
@@ -34,9 +39,12 @@ export default function AllSetScreen() {
     <SafeAreaView style={s.safe}>
       <View style={s.center}>
         <Animated.View style={enter}>
-          <LinearGradient colors={[colors.chip, colors.chipDeep]} start={{ x: 0.5, y: 0.1 }} end={{ x: 0.5, y: 1 }} style={s.tile}>
-            <Text style={s.emoji}>{soul.emoji}</Text>
-          </LinearGradient>
+          <Breathing amplitude={7} style={s.pairRow}>
+            <View style={s.ring}>
+              <AvatarFace skin={avatar.skin} hairStyle={avatar.hairStyle} hairColor={avatar.hairColor} shirtColor={avatar.shirtColor} size={SIZE} />
+            </View>
+            <View style={s.soul}><Text style={s.emoji}>{soul.emoji}</Text></View>
+          </Breathing>
         </Animated.View>
 
         <Animated.View style={[enter, s.copy]}>
@@ -56,13 +64,15 @@ export default function AllSetScreen() {
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
 
-  tile: { width: 122, height: 122, borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center', ...shadow.cardSoft },
-  emoji: { fontSize: 66 },
+  pairRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20 },
+  ring: { width: SIZE, height: SIZE, borderRadius: SIZE / 2, borderWidth: 3, borderColor: colors.card, overflow: 'hidden', backgroundColor: colors.chip, ...shadow.card },
+  soul: { width: SIZE, height: SIZE, borderRadius: SIZE / 2, backgroundColor: colors.chip, borderWidth: 3, borderColor: colors.card, alignItems: 'center', justifyContent: 'center', ...shadow.card },
+  emoji: { fontSize: 72 },
 
   copy: { alignItems: 'center' },
-  h1: { fontFamily: fonts.serifItalic, fontSize: 34, lineHeight: 40, color: colors.ink1, textAlign: 'center', marginTop: 30 },
+  h1: { fontFamily: fonts.serifItalic, fontSize: 34, lineHeight: 40, color: colors.ink1, textAlign: 'center', marginTop: 40 },
   body: { fontFamily: fonts.regular, ...ty.bodyLg, color: colors.ink3, textAlign: 'center', marginTop: 12, maxWidth: 300 },
 
   footer: { paddingHorizontal: 22, paddingBottom: 16, paddingTop: 8 },

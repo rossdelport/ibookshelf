@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useUserStore } from '../../store/userStore';
 import { GENRES } from '../../constants/genres';
+import { PopOnSelect } from '../../components/anim';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 
 const TOTAL_STEPS = 9;
@@ -42,10 +43,12 @@ export default function GenresScreen() {
         {GENRES.map(({ label, emoji }) => {
           const active = selected.includes(label);
           return (
-            <TouchableOpacity key={label} style={[gen.chip, active && gen.chipActive]} onPress={() => { Haptics.selectionAsync(); toggleGenre(label); }} activeOpacity={0.8}>
-              <Text style={gen.chipEmoji}>{emoji}</Text>
-              <Text style={[gen.chipLabel, active && gen.chipLabelActive]}>{label}</Text>
-            </TouchableOpacity>
+            <PopOnSelect key={label} active={active}>
+              <TouchableOpacity style={[gen.chip, active && gen.chipActive]} onPress={() => { Haptics.selectionAsync(); toggleGenre(label); }} activeOpacity={0.8}>
+                <Text style={gen.chipEmoji}>{emoji}</Text>
+                <Text style={[gen.chipLabel, active && gen.chipLabelActive]}>{label}</Text>
+              </TouchableOpacity>
+            </PopOnSelect>
           );
         })}
       </View>

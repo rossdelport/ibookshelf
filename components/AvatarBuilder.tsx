@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { AvatarFace } from './AvatarFace';
+import { PopOnSelect } from './anim';
 import { colors, fonts, type as ty, shadow } from '../constants/theme';
 
 export type Gender = 'female' | 'male' | 'unspecified';
@@ -56,9 +57,11 @@ export function AvatarBuilder({ value, onChange, previewSize = 132, belowPreview
         {GENDERS.map((g) => {
           const on = value.gender === g.key;
           return (
-            <TouchableOpacity key={g.key} style={[ab.segBtn, on && ab.segBtnActive]} onPress={() => set({ gender: g.key })} activeOpacity={0.85}>
-              <Text style={[ab.segLabel, on && ab.segLabelActive]}>{g.label}</Text>
-            </TouchableOpacity>
+            <PopOnSelect key={g.key} active={on}>
+              <TouchableOpacity style={[ab.segBtn, on && ab.segBtnActive]} onPress={() => set({ gender: g.key })} activeOpacity={0.85}>
+                <Text style={[ab.segLabel, on && ab.segLabelActive]}>{g.label}</Text>
+              </TouchableOpacity>
+            </PopOnSelect>
           );
         })}
       </View>

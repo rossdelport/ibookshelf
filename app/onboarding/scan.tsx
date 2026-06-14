@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { lookupBookByIsbn } from '../../lib/bookLookup';
+import { Confetti } from '../../components/Confetti';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 import type { Book, ReadingStatus } from '../../types/book';
 
@@ -140,6 +141,7 @@ export default function ScanScreen() {
 
       {found ? (
         // ── Full-screen book reveal ──────────────────────────────
+        <>
         <Animated.View style={[sc.foundBody, revealStyle]}>
           <Text style={sc.eyebrow}>YOUR FIRST BOOK</Text>
 
@@ -152,7 +154,7 @@ export default function ScanScreen() {
           )}
 
           <View style={sc.matchChip}>
-            <Check color={colors.success} size={11} />
+            <Check color={colors.success} size={13} />
             <Text style={sc.matchText}>Match found</Text>
           </View>
 
@@ -160,6 +162,7 @@ export default function ScanScreen() {
           <Text style={sc.foundAuthor} numberOfLines={1}>{book!.author}</Text>
 
           {/* Status picker */}
+          <Text style={sc.pleaseSelect}>PLEASE SELECT</Text>
           <View style={sc.statusRow}>
             {STATUSES.map((s) => {
               const on = status === s.key;
@@ -176,6 +179,8 @@ export default function ScanScreen() {
             })}
           </View>
         </Animated.View>
+        <Confetti />
+        </>
       ) : (
         <>
           {/* ── Head ─────────────────────────────────── */}
@@ -311,18 +316,19 @@ const sc = StyleSheet.create({
 
   // ── Found / full-screen reveal
   foundBody: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
-  eyebrow: { fontFamily: fonts.medium, ...ty.eyebrow, color: colors.ink3, textTransform: 'uppercase', marginBottom: 22 },
+  eyebrow: { fontFamily: fonts.semibold, fontSize: 13.5, letterSpacing: 2.6, color: colors.ink2, textTransform: 'uppercase', marginBottom: 22 },
   heroCover: { width: 188, height: 282, borderRadius: 8, backgroundColor: colors.chip, shadowColor: '#2A2017', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.28, shadowRadius: 24, elevation: 10 },
   heroFallback: { alignItems: 'center', justifyContent: 'center', padding: 18 },
   heroFallbackTitle: { fontFamily: fonts.semibold, fontSize: 18, color: colors.ink1, textAlign: 'center' },
 
-  matchChip: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 22, backgroundColor: colors.successSoft, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12 },
-  matchText: { fontFamily: fonts.semibold, fontSize: 12.5, color: colors.success },
+  matchChip: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 22, backgroundColor: colors.successSoft, borderRadius: 999, paddingVertical: 7, paddingHorizontal: 15 },
+  matchText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.success },
 
   foundTitle: { fontFamily: fonts.semibold, ...ty.titleSm, color: colors.ink1, textAlign: 'center', marginTop: 14 },
   foundAuthor: { fontFamily: fonts.serifItalic, fontSize: 17, color: colors.ink2, textAlign: 'center', marginTop: 4 },
 
-  statusRow: { flexDirection: 'row', gap: 8, marginTop: 22 },
+  pleaseSelect: { fontFamily: fonts.semibold, fontSize: 11.5, letterSpacing: 2, color: colors.ink3, textTransform: 'uppercase', marginTop: 26, marginBottom: 12 },
+  statusRow: { flexDirection: 'row', gap: 8 },
   statusPill: { borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.line },
   statusPillOn: { backgroundColor: colors.accent, borderColor: colors.accent },
   statusLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink2 },

@@ -3,8 +3,6 @@ import { ActivityIndicator, KeyboardAvoidingView, Platform, StyleSheet, Text, Te
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { supabase } from '../../lib/supabase';
-import { signInWithGoogle } from '../../lib/googleAuth';
-import { signInWithApple } from '../../lib/appleAuth';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 
 const TOTAL_STEPS = 9;
@@ -15,24 +13,6 @@ function Chevron() {
     <View style={su.chevronWrap}>
       <View style={su.chevronArm1} />
       <View style={su.chevronArm2} />
-    </View>
-  );
-}
-
-function AppleIcon() {
-  return <Text style={su.appleGlyph}>{''}</Text>;
-}
-
-function GoogleIcon() {
-  return <View style={su.googleG}><Text style={su.googleGText}>G</Text></View>;
-}
-
-function OrDivider() {
-  return (
-    <View style={su.orRow}>
-      <View style={su.orLine} />
-      <Text style={su.orLabel}>or</Text>
-      <View style={su.orLine} />
     </View>
   );
 }
@@ -49,27 +29,11 @@ export default function SignUpScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [googleLoading, setGoogleLoading] = useState(false);
-  const [appleLoading, setAppleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const emailValid = email.includes('@') && email.includes('.');
   const passwordValid = password.length >= 6;
-  const disabled = loading || googleLoading || appleLoading || !emailValid || !passwordValid;
-
-  const onGoogle = async () => {
-    setGoogleLoading(true); setError(null);
-    const res = await signInWithGoogle();
-    setGoogleLoading(false);
-    if (res.ok) router.push('/onboarding/scan'); else if (res.error) setError(res.error);
-  };
-
-  const onApple = async () => {
-    setAppleLoading(true); setError(null);
-    const res = await signInWithApple();
-    setAppleLoading(false);
-    if (res.ok) router.push('/onboarding/scan'); else if (res.error) setError(res.error);
-  };
+  const disabled = loading || !emailValid || !passwordValid;
 
   const createAccount = async () => {
     setLoading(true); setError(null);
@@ -105,19 +69,6 @@ export default function SignUpScreen() {
           </View>
 
           {!!error && <Text style={su.error}>{error}</Text>}
-
-          <OrDivider />
-
-          <View style={su.authStack}>
-            {Platform.OS === 'ios' && (
-              <TouchableOpacity style={su.appleBtn} activeOpacity={0.85} onPress={onApple} disabled={appleLoading}>
-                {appleLoading ? <ActivityIndicator color={colors.accentText} /> : (<><AppleIcon /><Text style={su.appleBtnText}>Continue with Apple</Text></>)}
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity style={su.googleBtn} activeOpacity={0.85} onPress={onGoogle} disabled={googleLoading}>
-              {googleLoading ? <ActivityIndicator color={colors.ink1} /> : (<><GoogleIcon /><Text style={su.googleBtnText}>Continue with Google</Text></>)}
-            </TouchableOpacity>
-          </View>
         </View>
 
         <View style={su.footer}>
@@ -148,19 +99,6 @@ const su = StyleSheet.create({
   body: { flex: 1, paddingHorizontal: 22, paddingTop: 28, gap: 18 },
   title: { fontFamily: fonts.light, ...ty.hero, color: colors.ink1 },
   sub: { fontFamily: fonts.regular, ...ty.bodyLg, color: colors.ink3, marginTop: -4 },
-
-  authStack: { gap: 12 },
-  appleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.accent, borderRadius: radius.button, paddingVertical: 16, gap: 10 },
-  appleGlyph: { color: colors.accentText, fontSize: 18, lineHeight: 22 },
-  appleBtnText: { color: colors.accentText, fontFamily: fonts.semibold, ...ty.label },
-  googleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card, borderRadius: radius.button, borderWidth: 1, borderColor: colors.line, paddingVertical: 16, gap: 10, ...shadow.cardSoft },
-  googleG: { width: 22, height: 22, borderRadius: 2, backgroundColor: '#4285F4', alignItems: 'center', justifyContent: 'center' },
-  googleGText: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 14 },
-  googleBtnText: { color: colors.ink1, fontFamily: fonts.semibold, ...ty.label },
-
-  orRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  orLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.lineStrong },
-  orLabel: { fontFamily: fonts.medium, ...ty.caption, color: colors.ink3 },
 
   field: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, paddingHorizontal: 16, paddingVertical: 16, ...shadow.cardSoft },
   mailIcon: { width: 18, height: 14, justifyContent: 'center' },

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useUserStore } from '../../store/userStore';
+import { FadeIn } from '../../components/anim';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 
 const TOTAL_STEPS = 9;
@@ -45,19 +46,23 @@ export default function UnreadScreen() {
         </View>
       </View>
 
-      <View style={ob.questionBlock}>
-        <Text style={ob.question}>How big is your home library?</Text>
-        <Text style={ob.sub}>Roughly how many books do you own?</Text>
-      </View>
+      <FadeIn>
+        <View style={ob.questionBlock}>
+          <Text style={ob.question}>How big is your home library?</Text>
+          <Text style={ob.sub}>Roughly how many books do you own?</Text>
+        </View>
+      </FadeIn>
 
       <View style={ob.options}>
         {OPTIONS.map((opt, i) => {
           const active = selected === i;
           return (
-            <TouchableOpacity key={opt.label} style={[ob.row, active && ob.rowActive]} onPress={() => { Haptics.selectionAsync(); setSelected(i); }} activeOpacity={0.8}>
-              <Text style={[ob.rowLabel, active && ob.rowLabelActive]}>{opt.label}</Text>
-              <Text style={ob.rowEmoji}>{opt.emoji}</Text>
-            </TouchableOpacity>
+            <FadeIn key={opt.label} delay={140 + i * 95}>
+              <TouchableOpacity style={[ob.row, active && ob.rowActive]} onPress={() => { Haptics.selectionAsync(); setSelected(i); }} activeOpacity={0.8}>
+                <Text style={[ob.rowLabel, active && ob.rowLabelActive]}>{opt.label}</Text>
+                <Text style={ob.rowEmoji}>{opt.emoji}</Text>
+              </TouchableOpacity>
+            </FadeIn>
           );
         })}
       </View>
