@@ -10,6 +10,7 @@ import { ANIMALS } from '../../constants/animals';
 import { GENRES, genreEmoji } from '../../constants/genres';
 import { useUserStore } from '../../store/userStore';
 import { useBookshelfStore } from '../../store/bookshelfStore';
+import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 
@@ -81,8 +82,9 @@ export default function ProfileScreen() {
   // ── Account ────────────────────────────────────────────────────────────────
   const signOut = async () => {
     await supabase.auth.signOut().catch(() => {});
-    // Clear local + persisted state so logout fully resets — even with no live
-    // session (e.g. the testing Skip path that never created an account).
+    // Clear session + local/persisted state so logout fully resets and the
+    // welcome screen (onboarding start) shows instead of bouncing back to tabs.
+    useAuthStore.getState().setSession(null);
     useBookshelfStore.getState().clear();
     useUserStore.getState().reset();
     router.replace('/');
@@ -105,6 +107,7 @@ export default function ProfileScreen() {
         if (error) throw error;
       }
       await supabase.auth.signOut().catch(() => {});
+      useAuthStore.getState().setSession(null);
       useBookshelfStore.getState().clear();
       useUserStore.getState().reset();
       router.replace('/');
