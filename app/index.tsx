@@ -1,9 +1,9 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../store/authStore';
+import { Logo } from '../components/Logo';
 import { colors, fonts, radius, type as ty, shadow } from '../constants/theme';
 
 export default function WelcomeScreen() {
@@ -17,9 +17,7 @@ export default function WelcomeScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.content}>
         <View style={styles.iconShadow}>
-          <View style={styles.iconClip}>
-            <Image source={require('../assets/images/logo-book.gif')} style={styles.iconGif} contentFit="cover" autoplay />
-          </View>
+          <Logo size={140} tile />
         </View>
 
         <Text style={styles.title}>iBookshelf</Text>

@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as StoreReview from 'expo-store-review';
 import Svg, { Path } from 'react-native-svg';
+import { Logo } from '../../components/Logo';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 
 const TOTAL_STEPS = 9;
@@ -77,9 +78,7 @@ export default function ReviewScreen() {
       {/* ── Body: review card ────────────────────────── */}
       <View style={rv.body}>
         <View style={rv.card}>
-          <View style={rv.emblem}>
-            <Image source={require('../../assets/images/logo_fable.png')} style={rv.emblemImg} resizeMode="contain" />
-          </View>
+          <Logo size={64} tile />
           <Text style={rv.q}>Rate your experience</Text>
           <Text style={rv.cap}>Tap a star to rate iBookshelf on the App Store</Text>
 
