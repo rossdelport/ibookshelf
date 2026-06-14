@@ -35,6 +35,9 @@ export default function SignUpScreen() {
   const passwordValid = password.length >= 6;
   const disabled = loading || !emailValid || !passwordValid;
 
+  // TESTING ONLY — bypass account creation. REMOVE before production.
+  const skip = () => router.push('/onboarding/scan');
+
   const createAccount = async () => {
     setLoading(true); setError(null);
     const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
@@ -54,6 +57,8 @@ export default function SignUpScreen() {
               <View key={i} style={[su.seg, i <= CURRENT_STEP && su.segActive]} />
             ))}
           </View>
+          {/* TESTING ONLY — remove before production */}
+          <TouchableOpacity onPress={skip} hitSlop={8}><Text style={su.skip}>Skip</Text></TouchableOpacity>
         </View>
 
         <View style={su.body}>
@@ -95,6 +100,7 @@ const su = StyleSheet.create({
   progressRow: { flex: 1, flexDirection: 'row', gap: 5 },
   seg: { flex: 1, height: 4, borderRadius: 999, backgroundColor: colors.line },
   segActive: { backgroundColor: colors.accent },
+  skip: { fontFamily: fonts.medium, fontSize: 13, color: colors.ink3 }, // TESTING ONLY
 
   body: { flex: 1, paddingHorizontal: 22, paddingTop: 28, gap: 18 },
   title: { fontFamily: fonts.light, ...ty.hero, color: colors.ink1 },

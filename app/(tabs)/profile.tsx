@@ -79,7 +79,14 @@ export default function ProfileScreen() {
   };
 
   // ── Account ────────────────────────────────────────────────────────────────
-  const signOut = async () => { await supabase.auth.signOut(); router.replace('/'); };
+  const signOut = async () => {
+    await supabase.auth.signOut().catch(() => {});
+    // Clear local + persisted state so logout fully resets — even with no live
+    // session (e.g. the testing Skip path that never created an account).
+    useBookshelfStore.getState().clear();
+    useUserStore.getState().reset();
+    router.replace('/');
+  };
   const confirmSignOut = () =>
     Alert.alert('Sign out?', 'You can sign back in anytime — your library stays backed up in the cloud.', [
       { text: 'Cancel', style: 'cancel' },
@@ -90,9 +97,16 @@ export default function ProfileScreen() {
   const doDeleteAccount = async () => {
     try {
       setDeleting(true);
-      const { error } = await supabase.functions.invoke('delete-account');
-      if (error) throw error;
+      // Only hit the server when there's a real account. The testing Skip path
+      // has no session, so there's nothing to delete server-side.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { error } = await supabase.functions.invoke('delete-account');
+        if (error) throw error;
+      }
       await supabase.auth.signOut().catch(() => {});
+      useBookshelfStore.getState().clear();
+      useUserStore.getState().reset();
       router.replace('/');
     } catch {
       setDeleting(false);
