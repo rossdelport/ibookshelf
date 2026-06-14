@@ -8,6 +8,7 @@ import { ProgressSheet } from '../../components/ProgressSheet';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
 import { shelfChipColor } from '../../constants/shelfColors';
+import { PopOnSelect } from '../../components/anim';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 import type { ReadingStatus } from '../../types/book';
 
@@ -151,10 +152,12 @@ export default function BookDetailScreen() {
             {STATUSES.map((s) => {
               const active = entry.status === s.key;
               return (
-                <TouchableOpacity key={s.key} style={[d.chip, active && d.chipActive]} onPress={() => setStatus(s.key)} activeOpacity={0.8}>
-                  <Text style={d.chipEmoji}>{s.emoji}</Text>
-                  <Text style={[d.chipText, active && d.chipTextActive]}>{s.label}</Text>
-                </TouchableOpacity>
+                <PopOnSelect key={s.key} active={active}>
+                  <TouchableOpacity style={[d.chip, active && d.chipActive]} onPress={() => setStatus(s.key)} activeOpacity={0.8}>
+                    <Text style={d.chipEmoji}>{s.emoji}</Text>
+                    <Text style={[d.chipText, active && d.chipTextActive]}>{s.label}</Text>
+                  </TouchableOpacity>
+                </PopOnSelect>
               );
             })}
           </View>
@@ -181,10 +184,12 @@ export default function BookDetailScreen() {
               const on = (entry.shelves ?? []).includes(sh.name);
               const tint = shelfChipColor(sh.color);
               return (
-                <TouchableOpacity key={sh.name} style={[d.chip, on && d.chipActive, on ? { backgroundColor: tint, borderColor: tint } : null]} onPress={() => { Haptics.selectionAsync(); toggleBookShelf(id, sh.name); }} activeOpacity={0.8}>
-                  <Text style={d.chipEmoji}>{sh.emoji}</Text>
-                  <Text style={[d.chipText, on && d.chipTextActive]}>{sh.name}</Text>
-                </TouchableOpacity>
+                <PopOnSelect key={sh.name} active={on}>
+                  <TouchableOpacity style={[d.chip, on && d.chipActive, on ? { backgroundColor: tint, borderColor: tint } : null]} onPress={() => { Haptics.selectionAsync(); toggleBookShelf(id, sh.name); }} activeOpacity={0.8}>
+                    <Text style={d.chipEmoji}>{sh.emoji}</Text>
+                    <Text style={[d.chipText, on && d.chipTextActive]}>{sh.name}</Text>
+                  </TouchableOpacity>
+                </PopOnSelect>
               );
             })}
             <TouchableOpacity style={d.newShelfChip} onPress={() => router.push({ pathname: '/new-shelf', params: { addBook: id } })} activeOpacity={0.8}>

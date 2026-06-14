@@ -6,6 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { AvatarFace } from '../../components/AvatarFace';
 import { AvatarBuilder, DEFAULT_DRAFT, type AvatarDraft } from '../../components/AvatarBuilder';
 import { Sheet } from '../../components/Sheet';
+import { CountUp } from '../../components/anim';
 import { ANIMALS } from '../../constants/animals';
 import { GENRES, genreEmoji } from '../../constants/genres';
 import { useUserStore } from '../../store/userStore';
@@ -164,10 +165,10 @@ export default function ProfileScreen() {
         {/* ── Reading Life ─────────────────────────────── */}
         <SectionCard title="Reading Life">
           <View style={pf.stats}>
-            {[[String(readCount), 'Books Read'], [String(ownedCount), 'In Library'], [pagesValue, 'Pages Read']].map(([v, l], i) => (
-              <View key={l} style={[pf.stat, i > 0 && pf.statDivider]}>
-                <Text style={pf.statV}>{v}</Text>
-                <Text style={pf.statL}>{l}</Text>
+            {([{ n: readCount, l: 'Books Read' }, { n: ownedCount, l: 'In Library' }, { t: pagesValue, l: 'Pages Read' }] as { n?: number; t?: string; l: string }[]).map((s, i) => (
+              <View key={s.l} style={[pf.stat, i > 0 && pf.statDivider]}>
+                {s.n != null ? <CountUp to={s.n} duration={900} style={pf.statV} /> : <Text style={pf.statV}>{s.t}</Text>}
+                <Text style={pf.statL}>{s.l}</Text>
               </View>
             ))}
           </View>

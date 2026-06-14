@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import { AvatarFace } from '../../components/AvatarFace';
 import { ArrowIcon, PlayIcon, SearchIcon } from '../../components/icons';
 import { ProgressSheet } from '../../components/ProgressSheet';
+import { CountUp, PressableScale } from '../../components/anim';
 import { ANIMALS } from '../../constants/animals';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
@@ -76,10 +77,10 @@ function MiniCover({ book }: { book: ShelfBook }) {
   );
 }
 
-function Stat({ value, label }: { value: string; label: string }) {
+function Stat({ value, label }: { value: number; label: string }) {
   return (
     <View style={ho.stat}>
-      <Text style={ho.statValue}>{value}</Text>
+      <CountUp to={value} duration={900} style={ho.statValue} />
       <Text style={ho.statLabel}>{label}</Text>
     </View>
   );
@@ -186,9 +187,9 @@ export default function HomeScreen() {
         <>
           {/* ── Hero (flat cover + pill) ──────────────── */}
           <View style={ho.hero}>
-            <TouchableOpacity activeOpacity={0.9} onPress={() => openBook(current.id)}>
+            <PressableScale onPress={() => openBook(current.id)}>
               <HeroCover book={current} badge={badge} />
-            </TouchableOpacity>
+            </PressableScale>
           </View>
 
           <TouchableOpacity style={ho.bookMeta} activeOpacity={0.7} onPress={() => openBook(current.id)}>
@@ -201,10 +202,10 @@ export default function HomeScreen() {
             ) : null}
           </TouchableOpacity>
 
-          <TouchableOpacity style={ho.startBtn} activeOpacity={0.9} onPress={onHeroCta}>
+          <PressableScale style={ho.startBtn} onPress={onHeroCta}>
             {!isReading && <PlayIcon color={colors.accentText} />}
             <Text style={ho.startBtnText}>{ctaLabel}</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </>
       ) : (
         // ── Empty hero (no books yet) ───────────────
@@ -212,21 +213,21 @@ export default function HomeScreen() {
           <Text style={ho.emptyEmoji}>📚</Text>
           <Text style={ho.emptyTitle}>Your shelf is waiting</Text>
           <Text style={ho.emptyText}>Scan a book you own to start your library.</Text>
-          <TouchableOpacity style={ho.startBtn} activeOpacity={0.9} onPress={() => router.navigate('/(tabs)/scan')}>
+          <PressableScale style={ho.startBtn} onPress={() => router.navigate('/(tabs)/scan')}>
             <Text style={ho.startBtnText}>Scan a book</Text>
-          </TouchableOpacity>
+          </PressableScale>
         </View>
       )}
 
       {/* ── Quick stats ──────────────────────────────── */}
       <View style={ho.stats}>
-        <Stat value={String(owned.length)} label="In Library" />
-        <Stat value={String(reading.length)} label="Reading" />
-        <Stat value={String(readCount)} label="Books Read" />
+        <Stat value={owned.length} label="In Library" />
+        <Stat value={reading.length} label="Reading" />
+        <Stat value={readCount} label="Books Read" />
       </View>
 
       {/* ── My Shelf card ────────────────────────────── */}
-      <TouchableOpacity style={ho.bigCard} activeOpacity={0.9} onPress={() => router.navigate('/(tabs)/shelf')}>
+      <PressableScale style={ho.bigCard} onPress={() => router.navigate('/(tabs)/shelf')}>
         <View style={ho.bigCardHead}>
           <View>
             <Text style={ho.bigCardTitle}>My Shelf</Text>
@@ -242,7 +243,7 @@ export default function HomeScreen() {
         ) : (
           <Text style={ho.shelfEmpty}>Nothing here yet — scan a book to begin.</Text>
         )}
-      </TouchableOpacity>
+      </PressableScale>
     </ScrollView>
     <ProgressSheet book={progressBook} visible={!!progressBook} onClose={() => setProgressBook(null)} />
     </>

@@ -1,5 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, Easing, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { type ComponentProps, useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+/** Pressable that shrinks slightly while pressed — a tactile, premium tap. */
+export function PressableScale({ style, children, scaleTo = 0.96, ...rest }: Omit<ComponentProps<typeof Pressable>, 'style'> & { style?: StyleProp<ViewStyle>; scaleTo?: number; children: React.ReactNode }) {
+  const a = useRef(new Animated.Value(1)).current;
+  const to = (v: number) => Animated.spring(a, { toValue: v, friction: 7, tension: 220, useNativeDriver: true }).start();
+  return (
+    <AnimatedPressable onPressIn={() => to(scaleTo)} onPressOut={() => to(1)} style={[style, { transform: [{ scale: a }] }]} {...rest}>
+      {children}
+    </AnimatedPressable>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Small reusable interaction animations. Native driver wherever possible.

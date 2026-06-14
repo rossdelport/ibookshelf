@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { AvatarFace } from '../../components/AvatarFace';
 import { BookCover } from '../../components/BookCover';
 import { ProgressSheet } from '../../components/ProgressSheet';
+import { PopOnSelect } from '../../components/anim';
 import { SyncStatus } from '../../components/SyncStatus';
 import { PlusIcon, SearchIcon } from '../../components/icons';
 import { ANIMALS } from '../../constants/animals';
@@ -147,14 +148,15 @@ export default function ShelfScreen() {
               {chips.map((c) => {
                 const active = filter.kind === c.kind && filter.value === c.value;
                 return (
-                  <TouchableOpacity
-                    key={`${c.kind}:${c.value}`}
-                    style={[sl.chip, active && sl.chipActive, active && c.color ? { backgroundColor: c.color, borderColor: c.color } : null]}
-                    onPress={() => { Haptics.selectionAsync(); setFilter({ kind: c.kind, value: c.value }); }}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[sl.chipText, active && sl.chipTextActive]}>{c.label}</Text>
-                  </TouchableOpacity>
+                  <PopOnSelect key={`${c.kind}:${c.value}`} active={active}>
+                    <TouchableOpacity
+                      style={[sl.chip, active && sl.chipActive, active && c.color ? { backgroundColor: c.color, borderColor: c.color } : null]}
+                      onPress={() => { Haptics.selectionAsync(); setFilter({ kind: c.kind, value: c.value }); }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={[sl.chipText, active && sl.chipTextActive]}>{c.label}</Text>
+                    </TouchableOpacity>
+                  </PopOnSelect>
                 );
               })}
               <TouchableOpacity style={sl.newChip} onPress={() => router.push('/new-shelf')} activeOpacity={0.8}>
