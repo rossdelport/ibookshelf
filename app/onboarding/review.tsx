@@ -41,8 +41,8 @@ function Star({ delay, filled, onPress }: { delay: number; filled: boolean; onPr
 export default function ReviewScreen() {
   const [rating, setRating] = useState(0);
 
-  // Proceeds into the app. Rewired through the All-set page in the next step.
-  const proceed = () => router.replace('/(tabs)');
+  // Review is the second-last screen; it hands off to the All-set finale.
+  const proceed = () => router.push('/onboarding/all-set');
 
   const askForReview = async (stars: number) => {
     setRating(stars);

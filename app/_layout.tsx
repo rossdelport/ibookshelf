@@ -112,6 +112,7 @@ function RootLayout() {
         <Stack.Screen name="onboarding/signup" />
         <Stack.Screen name="onboarding/scan" />
         <Stack.Screen name="onboarding/review" />
+        <Stack.Screen name="onboarding/all-set" />
         <Stack.Screen
           name="onboarding/soul-detail"
           options={{
