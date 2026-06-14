@@ -2,26 +2,25 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { lookupBookByIsbn } from '../../lib/bookLookup';
-import type { Book } from '../../types/book';
+import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
+import type { Book, ReadingStatus } from '../../types/book';
 
-// ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
-const INK     = '#332C24';
-const MUTE    = '#A89A88';
-const AMBER   = '#E8A838';
-const PAPER   = '#FAF8F3';
-const WHITE   = '#FFFFFF';
-const GREEN   = '#5BA66E';
+const CAM_BG = '#1B1A18';
 
-const TOTAL_STEPS  = 9;
+const TOTAL_STEPS = 9;
 const CURRENT_STEP = 7; // segments 0–7 filled (screen 09)
 
-// 'scanning' → camera live, waiting for a barcode
-// 'identifying' → barcode caught, fetching from Google Books
-// 'found' → book identified, ready to add
-// 'notfound' → barcode read but no match
+const STATUSES: { key: ReadingStatus; label: string }[] = [
+  { key: 'want_to_read', label: 'Want to read' },
+  { key: 'reading', label: 'Reading' },
+  { key: 'read', label: 'Read' },
+];
+
+// 'scanning' → camera live · 'identifying' → fetching · 'found' · 'notfound'
 type ScanState = 'scanning' | 'identifying' | 'found' | 'notfound';
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -35,20 +34,12 @@ function Chevron() {
   );
 }
 
-/** Small check glyph built from two rotated bars (badge tick) */
-function Check({ color = WHITE, size = 10 }: { color?: string; size?: number }) {
+/** Small check glyph from two rotated bars */
+function Check({ color, size = 11 }: { color: string; size?: number }) {
   return (
     <View style={{ width: size, height: size, justifyContent: 'center' }}>
-      <View style={{
-        position: 'absolute', left: 0, bottom: size * 0.18,
-        width: size * 0.42, height: 2, borderRadius: 1, backgroundColor: color,
-        transform: [{ rotate: '45deg' }],
-      }} />
-      <View style={{
-        position: 'absolute', left: size * 0.26, bottom: size * 0.18,
-        width: size * 0.72, height: 2, borderRadius: 1, backgroundColor: color,
-        transform: [{ rotate: '-45deg' }],
-      }} />
+      <View style={{ position: 'absolute', left: 0, bottom: size * 0.18, width: size * 0.42, height: 2, borderRadius: 1, backgroundColor: color, transform: [{ rotate: '45deg' }] }} />
+      <View style={{ position: 'absolute', left: size * 0.26, bottom: size * 0.18, width: size * 0.72, height: 2, borderRadius: 1, backgroundColor: color, transform: [{ rotate: '-45deg' }] }} />
     </View>
   );
 }
@@ -61,20 +52,18 @@ export default function ScanScreen() {
 
   const [scanState, setScanState] = useState<ScanState>('scanning');
   const [book, setBook] = useState<Book | null>(null);
+  const [status, setStatus] = useState<ReadingStatus>('want_to_read');
   const [viewH, setViewH] = useState(0);
 
-  // Guards against the barcode callback firing many times per second
   const lock = useRef(false);
   const sweep = useRef(new Animated.Value(0)).current;
+  const reveal = useRef(new Animated.Value(0)).current;
 
-  // Ask for camera access as soon as we land here
   useEffect(() => {
-    if (permission && !permission.granted && permission.canAskAgain) {
-      requestPermission();
-    }
+    if (permission && !permission.granted && permission.canAskAgain) requestPermission();
   }, [permission, requestPermission]);
 
-  // Loop the scan line while we're actively waiting for a barcode (§4)
+  // Loop the scan line while waiting for a barcode
   useEffect(() => {
     if (scanState !== 'scanning') return;
     const anim = Animated.loop(
@@ -87,6 +76,14 @@ export default function ScanScreen() {
     return () => anim.stop();
   }, [scanState, sweep]);
 
+  // Celebrate the reveal once a book is found.
+  useEffect(() => {
+    if (scanState !== 'found') return;
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    reveal.setValue(0);
+    Animated.spring(reveal, { toValue: 1, friction: 7, tension: 60, useNativeDriver: true }).start();
+  }, [scanState, reveal]);
+
   const handleBarcode = useCallback(async ({ data }: BarcodeScanningResult) => {
     if (lock.current) return;
     lock.current = true;
@@ -96,6 +93,7 @@ export default function ScanScreen() {
       setBook(found);
       setScanState('found');
     } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       setScanState('notfound');
     }
   }, []);
@@ -103,21 +101,28 @@ export default function ScanScreen() {
   const rescan = () => {
     lock.current = false;
     setBook(null);
+    setStatus('want_to_read');
     setScanState('scanning');
   };
 
   const addAndContinue = () => {
-    // Onboarding = the reader's very first book, so no duplicate is possible.
-    if (book) addToShelf(book, 'want_to_read');
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (book) addToShelf(book, status); // onboarding = first book, no dup possible
     router.push('/onboarding/review');
   };
 
   const skip = () => router.push('/onboarding/review');
 
-  const lineY = sweep.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, Math.max(viewH - 32, 0)],
-  });
+  const lineY = sweep.interpolate({ inputRange: [0, 1], outputRange: [0, Math.max(viewH - 32, 0)] });
+  const revealStyle = {
+    opacity: reveal,
+    transform: [
+      { scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) },
+      { translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) },
+    ],
+  };
+
+  const found = scanState === 'found' && book;
 
   return (
     <SafeAreaView style={sc.safe}>
@@ -133,100 +138,113 @@ export default function ScanScreen() {
         </View>
       </View>
 
-      {/* ── Head ─────────────────────────────────────── */}
-      <View style={sc.head}>
-        <Text style={sc.title}>Grab the book closest{'\n'}to you right now.</Text>
-        <Text style={sc.sub}>Point your camera at the barcode and we'll add it to your library.</Text>
-      </View>
+      {found ? (
+        // ── Full-screen book reveal ──────────────────────────────
+        <Animated.View style={[sc.foundBody, revealStyle]}>
+          <Text style={sc.eyebrow}>YOUR FIRST BOOK</Text>
 
-      {/* ── Body ─────────────────────────────────────── */}
-      <View style={sc.body}>
-        {/* Camera viewport */}
-        <View style={sc.scanView} onLayout={(e) => setViewH(e.nativeEvent.layout.height)}>
-          {permission?.granted ? (
-            <CameraView
-              style={StyleSheet.absoluteFill}
-              facing="back"
-              // Power the camera down once a barcode is caught; back on for a re-scan.
-              active={scanState === 'scanning'}
-              barcodeScannerSettings={{ barcodeTypes: ['ean13'] }}
-              onBarcodeScanned={scanState === 'scanning' ? handleBarcode : undefined}
-            />
+          {book!.coverUrl ? (
+            <Image source={{ uri: book!.coverUrl }} style={sc.heroCover} resizeMode="cover" />
           ) : (
-            <View style={sc.permissionWrap}>
-              <Text style={sc.permissionText}>
-                {permission && !permission.canAskAgain
-                  ? 'Camera access is off. Enable it in Settings to scan books.'
-                  : 'We need your camera to scan book barcodes.'}
-              </Text>
-              {permission && !permission.granted && permission.canAskAgain && (
-                <TouchableOpacity style={sc.permBtn} onPress={requestPermission} activeOpacity={0.85}>
-                  <Text style={sc.permBtnText}>Allow camera</Text>
-                </TouchableOpacity>
-              )}
+            <View style={[sc.heroCover, sc.heroFallback]}>
+              <Text style={sc.heroFallbackTitle} numberOfLines={4}>{book!.title}</Text>
             </View>
           )}
 
-          {/* Corner brackets */}
-          <View style={[sc.corner, sc.cornerTL]} />
-          <View style={[sc.corner, sc.cornerTR]} />
-          <View style={[sc.corner, sc.cornerBL]} />
-          <View style={[sc.corner, sc.cornerBR]} />
-
-          {/* Sweeping scan line — only while waiting for a barcode */}
-          {scanState === 'scanning' && permission?.granted && (
-            <Animated.View style={[sc.scanLine, { transform: [{ translateY: lineY }] }]} />
-          )}
-
-          {/* Identifying overlay */}
-          {scanState === 'identifying' && (
-            <View style={sc.identifying}>
-              <ActivityIndicator color={AMBER} />
-              <Text style={sc.identifyingText}>Identifying…</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Result card — hidden until a book is identified */}
-        {scanState === 'found' && book && (
-          <>
-            <View style={sc.result}>
-              {book.coverUrl ? (
-                <Image source={{ uri: book.coverUrl }} style={sc.resultCover} resizeMode="cover" />
-              ) : (
-                <View style={[sc.resultCover, sc.resultCoverFallback]}>
-                  <Text style={sc.resultCoverGlyph}>📖</Text>
-                </View>
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={sc.resultTitle} numberOfLines={2}>{book.title}</Text>
-                <Text style={sc.resultAuthor} numberOfLines={1}>{book.author}</Text>
-                <View style={sc.badge}>
-                  <Check size={10} />
-                  <Text style={sc.badgeText}>Match found</Text>
-                </View>
-              </View>
-            </View>
-            <Text style={sc.done}>Your first book! Add to your shelf.</Text>
-          </>
-        )}
-
-        {/* Couldn't identify */}
-        {scanState === 'notfound' && (
-          <View style={sc.notice}>
-            <Text style={sc.noticeText}>
-              Hmm, we couldn't identify that one. Make sure the barcode is inside the frame and try again.
-            </Text>
+          <View style={sc.matchChip}>
+            <Check color={colors.success} size={11} />
+            <Text style={sc.matchText}>Match found</Text>
           </View>
-        )}
-      </View>
+
+          <Text style={sc.foundTitle} numberOfLines={2}>{book!.title}</Text>
+          <Text style={sc.foundAuthor} numberOfLines={1}>{book!.author}</Text>
+
+          {/* Status picker */}
+          <View style={sc.statusRow}>
+            {STATUSES.map((s) => {
+              const on = status === s.key;
+              return (
+                <TouchableOpacity
+                  key={s.key}
+                  style={[sc.statusPill, on && sc.statusPillOn]}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setStatus(s.key); }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={[sc.statusLabel, on && sc.statusLabelOn]}>{s.label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Animated.View>
+      ) : (
+        <>
+          {/* ── Head ─────────────────────────────────── */}
+          <View style={sc.head}>
+            <Text style={sc.title}>Grab the book closest to you right now.</Text>
+            <Text style={sc.sub}>Point your camera at the barcode and we'll add it to your library.</Text>
+          </View>
+
+          {/* ── Body ─────────────────────────────────── */}
+          <View style={sc.body}>
+            <View style={sc.scanView} onLayout={(e) => setViewH(e.nativeEvent.layout.height)}>
+              {permission?.granted ? (
+                <CameraView
+                  style={StyleSheet.absoluteFill}
+                  facing="back"
+                  active={scanState === 'scanning'}
+                  barcodeScannerSettings={{ barcodeTypes: ['ean13'] }}
+                  onBarcodeScanned={scanState === 'scanning' ? handleBarcode : undefined}
+                />
+              ) : (
+                <View style={sc.permissionWrap}>
+                  <Text style={sc.permissionText}>
+                    {permission && !permission.canAskAgain
+                      ? 'Camera access is off. Enable it in Settings to scan books.'
+                      : 'We need your camera to scan book barcodes.'}
+                  </Text>
+                  {permission && !permission.granted && permission.canAskAgain && (
+                    <TouchableOpacity style={sc.permBtn} onPress={requestPermission} activeOpacity={0.85}>
+                      <Text style={sc.permBtnText}>Allow camera</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
+
+              {/* Corner brackets */}
+              <View style={[sc.corner, sc.cornerTL]} />
+              <View style={[sc.corner, sc.cornerTR]} />
+              <View style={[sc.corner, sc.cornerBL]} />
+              <View style={[sc.corner, sc.cornerBR]} />
+
+              {scanState === 'scanning' && permission?.granted && (
+                <Animated.View style={[sc.scanLine, { transform: [{ translateY: lineY }] }]} />
+              )}
+
+              {scanState === 'identifying' && (
+                <View style={sc.identifying}>
+                  <ActivityIndicator color={colors.accentText} />
+                  <Text style={sc.identifyingText}>Identifying…</Text>
+                </View>
+              )}
+            </View>
+
+            {scanState === 'notfound' && (
+              <View style={sc.notice}>
+                <Text style={sc.noticeText}>
+                  Hmm, we couldn't identify that one. Make sure the barcode is inside the frame and try again.
+                </Text>
+              </View>
+            )}
+          </View>
+        </>
+      )}
 
       {/* ── Footer ───────────────────────────────────── */}
       <View style={sc.footer}>
-        {scanState === 'found' ? (
+        {found ? (
           <>
-            <TouchableOpacity style={sc.cta} onPress={addAndContinue} activeOpacity={0.85}>
-              <Text style={sc.ctaText}>Add to your shelf  →</Text>
+            <TouchableOpacity style={sc.cta} onPress={addAndContinue} activeOpacity={0.9}>
+              <Text style={sc.ctaText}>Add to your shelf</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={rescan} activeOpacity={0.7}>
               <Text style={sc.tinyLink}>Re-scan</Text>
@@ -234,7 +252,7 @@ export default function ScanScreen() {
           </>
         ) : scanState === 'notfound' ? (
           <>
-            <TouchableOpacity style={sc.cta} onPress={rescan} activeOpacity={0.85}>
+            <TouchableOpacity style={sc.cta} onPress={rescan} activeOpacity={0.9}>
               <Text style={sc.ctaText}>Try again</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={skip} activeOpacity={0.7}>
@@ -252,111 +270,71 @@ export default function ScanScreen() {
 }
 
 const sc = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: PAPER },
+  safe: { flex: 1, backgroundColor: colors.bg },
 
   // ── Topbar
   topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, gap: 14 },
-  backBtn: {
-    width: 38, height: 38, borderRadius: 999, backgroundColor: WHITE,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
-    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
-  },
+  backBtn: { width: 38, height: 38, borderRadius: 999, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   chevronWrap: { width: 12, height: 12, alignItems: 'center', justifyContent: 'center', marginRight: -2 },
-  chevronArm1: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: INK, top: 2.5, left: 2, transform: [{ rotate: '-45deg' }] },
-  chevronArm2: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: INK, bottom: 2.5, left: 2, transform: [{ rotate: '45deg' }] },
+  chevronArm1: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: colors.ink1, top: 2.5, left: 2, transform: [{ rotate: '-45deg' }] },
+  chevronArm2: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: colors.ink1, bottom: 2.5, left: 2, transform: [{ rotate: '45deg' }] },
 
   // ── Progress
   progressRow: { flex: 1, flexDirection: 'row', gap: 5 },
-  seg:         { flex: 1, height: 3.5, borderRadius: 999, backgroundColor: 'rgba(139,94,60,0.15)' },
-  segActive:   { backgroundColor: AMBER },
+  seg: { flex: 1, height: 4, borderRadius: 999, backgroundColor: colors.line },
+  segActive: { backgroundColor: colors.accent },
 
-  // ── Head (§3 ob-title / ob-sub)
-  head: { paddingHorizontal: 22, marginTop: 26 },
-  title: { fontSize: 27, fontWeight: '800', color: INK, letterSpacing: -0.5, lineHeight: 30 },
-  sub:   { fontSize: 14.5, fontWeight: '500', color: '#8a7d6d', lineHeight: 21, marginTop: 9 },
+  // ── Head
+  head: { paddingHorizontal: 22, marginTop: 24 },
+  title: { fontFamily: fonts.light, ...ty.hero, color: colors.ink1 },
+  sub: { fontFamily: fonts.regular, ...ty.bodyLg, color: colors.ink3, marginTop: 10 },
 
-  // ── Body
-  body: { flex: 1, paddingHorizontal: 22, paddingTop: 20 },
+  // ── Scan body
+  body: { flex: 1, paddingHorizontal: 22, paddingTop: 22 },
+  scanView: { width: '100%', aspectRatio: 4 / 3, borderRadius: radius.sheet, overflow: 'hidden', backgroundColor: CAM_BG, alignItems: 'center', justifyContent: 'center' },
 
-  // Camera viewport — dark warm, rounded, 4:3
-  scanView: {
-    width: '100%',
-    aspectRatio: 4 / 3,
-    borderRadius: 22,
-    overflow: 'hidden',
-    backgroundColor: '#211A12',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // Permission fallback inside the viewport
   permissionWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 16 },
-  permissionText: { color: 'rgba(255,255,255,0.85)', fontSize: 14, fontWeight: '600', textAlign: 'center', lineHeight: 20 },
-  permBtn: { backgroundColor: AMBER, borderRadius: 999, paddingVertical: 11, paddingHorizontal: 22 },
-  permBtnText: { color: WHITE, fontSize: 14, fontWeight: '800' },
+  permissionText: { color: 'rgba(255,255,255,0.85)', fontFamily: fonts.medium, fontSize: 14.5, textAlign: 'center', lineHeight: 21 },
+  permBtn: { backgroundColor: colors.accent, borderRadius: 999, paddingVertical: 12, paddingHorizontal: 22 },
+  permBtnText: { color: colors.accentText, fontFamily: fonts.semibold, fontSize: 14.5 },
 
-  // Corner brackets — amber L-shapes
-  corner: { position: 'absolute', width: 30, height: 30, borderColor: AMBER },
+  corner: { position: 'absolute', width: 30, height: 30, borderColor: colors.accentText },
   cornerTL: { top: 16, left: 16, borderTopWidth: 3, borderLeftWidth: 3, borderTopLeftRadius: 6 },
   cornerTR: { top: 16, right: 16, borderTopWidth: 3, borderRightWidth: 3, borderTopRightRadius: 6 },
   cornerBL: { bottom: 16, left: 16, borderBottomWidth: 3, borderLeftWidth: 3, borderBottomLeftRadius: 6 },
   cornerBR: { bottom: 16, right: 16, borderBottomWidth: 3, borderRightWidth: 3, borderBottomRightRadius: 6 },
 
-  // Sweeping scan line (starts at top inset, animated down)
-  scanLine: {
-    position: 'absolute',
-    top: 16, left: 16, right: 16, height: 2,
-    backgroundColor: '#F0BC5A',
-    shadowColor: AMBER, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.9, shadowRadius: 6,
-  },
+  scanLine: { position: 'absolute', top: 16, left: 16, right: 16, height: 2, backgroundColor: '#F3EFE9', shadowColor: '#FFFFFF', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.6, shadowRadius: 6 },
 
-  // Identifying overlay
-  identifying: {
-    ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: 'rgba(20,14,8,0.45)',
-  },
-  identifyingText: { color: '#FBE6BE', fontSize: 13.5, fontWeight: '700' },
+  identifying: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: 'rgba(20,18,16,0.5)' },
+  identifyingText: { color: colors.accentText, fontFamily: fonts.semibold, fontSize: 14 },
 
-  // ── Result card (§4 row)
-  result: {
-    flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16,
-    padding: 14, borderRadius: 16, backgroundColor: WHITE,
-    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
-    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 14, elevation: 2,
-  },
-  resultCover: {
-    width: 46, height: 68, borderRadius: 4, backgroundColor: '#F6EFE2',
-    shadowColor: '#5A3C23', shadowOffset: { width: 1, height: 2 }, shadowOpacity: 0.24, shadowRadius: 7,
-  },
-  resultCoverFallback: { alignItems: 'center', justifyContent: 'center' },
-  resultCoverGlyph: { fontSize: 24 },
-  resultTitle:  { fontSize: 15.5, fontWeight: '800', color: INK },
-  resultAuthor: { fontSize: 12.5, fontWeight: '600', color: MUTE, fontFamily: 'Georgia', fontStyle: 'italic', marginTop: 1 },
+  // ── Found / full-screen reveal
+  foundBody: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
+  eyebrow: { fontFamily: fonts.medium, ...ty.eyebrow, color: colors.ink3, textTransform: 'uppercase', marginBottom: 22 },
+  heroCover: { width: 188, height: 282, borderRadius: 8, backgroundColor: colors.chip, shadowColor: '#2A2017', shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.28, shadowRadius: 24, elevation: 10 },
+  heroFallback: { alignItems: 'center', justifyContent: 'center', padding: 18 },
+  heroFallbackTitle: { fontFamily: fonts.semibold, fontSize: 18, color: colors.ink1, textAlign: 'center' },
 
-  // Green "match" badge
-  badge: {
-    flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 5,
-    marginTop: 6, backgroundColor: GREEN, borderRadius: 999, paddingVertical: 3, paddingHorizontal: 9,
-  },
-  badgeText: { fontSize: 11.5, fontWeight: '800', color: WHITE },
+  matchChip: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 22, backgroundColor: colors.successSoft, borderRadius: 999, paddingVertical: 5, paddingHorizontal: 12 },
+  matchText: { fontFamily: fonts.semibold, fontSize: 12.5, color: colors.success },
 
-  // Done line — Lora serif
-  done: { textAlign: 'center', fontFamily: 'Georgia', fontWeight: '600', fontSize: 18, color: INK, marginTop: 18 },
+  foundTitle: { fontFamily: fonts.semibold, ...ty.titleSm, color: colors.ink1, textAlign: 'center', marginTop: 14 },
+  foundAuthor: { fontFamily: fonts.serifItalic, fontSize: 17, color: colors.ink2, textAlign: 'center', marginTop: 4 },
 
-  // Couldn't-identify notice
-  notice: {
-    marginTop: 16, padding: 16, borderRadius: 16, backgroundColor: '#FBF1DC',
-    borderWidth: 0.5, borderColor: 'rgba(232,168,56,0.35)',
-  },
-  noticeText: { fontSize: 13.5, fontWeight: '600', color: '#8a6a32', lineHeight: 19, textAlign: 'center' },
+  statusRow: { flexDirection: 'row', gap: 8, marginTop: 22 },
+  statusPill: { borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.line },
+  statusPillOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  statusLabel: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink2 },
+  statusLabelOn: { color: colors.accentText },
+
+  // ── Notice
+  notice: { marginTop: 16, padding: 16, borderRadius: radius.card, backgroundColor: colors.chip, borderWidth: 1, borderColor: colors.line },
+  noticeText: { fontFamily: fonts.medium, ...ty.body, color: colors.ink2, textAlign: 'center' },
 
   // ── Footer
-  footer: { paddingHorizontal: 20, paddingBottom: 16, paddingTop: 8 },
-  cta: {
-    backgroundColor: AMBER, borderRadius: 18, paddingVertical: 19, alignItems: 'center',
-    shadowColor: '#E29A2A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 5,
-  },
-  ctaText:  { color: WHITE, fontSize: 17, fontWeight: '800', letterSpacing: 0.2 },
-  tinyLink: { textAlign: 'center', fontSize: 13, fontWeight: '700', color: MUTE, marginTop: 14 },
+  footer: { paddingHorizontal: 22, paddingBottom: 16, paddingTop: 8 },
+  cta: { backgroundColor: colors.accent, borderRadius: radius.button, paddingVertical: 18, alignItems: 'center', ...shadow.button },
+  ctaText: { color: colors.accentText, fontFamily: fonts.semibold, ...ty.label },
+  tinyLink: { textAlign: 'center', fontFamily: fonts.medium, fontSize: 14, color: colors.ink3, marginTop: 14 },
 });
