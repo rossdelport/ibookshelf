@@ -11,6 +11,7 @@ import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
 import { usePrefsStore } from '../../store/prefsStore';
 import { forceSync } from '../../lib/sync';
+import * as Haptics from 'expo-haptics';
 import { shelfChipColor } from '../../constants/shelfColors';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 import type { ReadingStatus, ShelfBook } from '../../types/book';
@@ -93,7 +94,7 @@ export default function ShelfScreen() {
     return arr;
   }, [visible, sort]);
 
-  const cycleSort = () => setSort(sort === 'recent' ? 'title' : sort === 'title' ? 'author' : 'recent');
+  const cycleSort = () => { Haptics.selectionAsync(); setSort(sort === 'recent' ? 'title' : sort === 'title' ? 'author' : 'recent'); };
 
   return (
     <View style={sl.fill}>
@@ -147,7 +148,7 @@ export default function ShelfScreen() {
                   <TouchableOpacity
                     key={`${c.kind}:${c.value}`}
                     style={[sl.chip, active && sl.chipActive, active && c.color ? { backgroundColor: c.color, borderColor: c.color } : null]}
-                    onPress={() => setFilter({ kind: c.kind, value: c.value })}
+                    onPress={() => { Haptics.selectionAsync(); setFilter({ kind: c.kind, value: c.value }); }}
                     activeOpacity={0.8}
                   >
                     <Text style={[sl.chipText, active && sl.chipTextActive]}>{c.label}</Text>
@@ -171,10 +172,10 @@ export default function ShelfScreen() {
               <Text style={sl.sortText}>↕  {SORT_LABEL[sort]}</Text>
             </TouchableOpacity>
             <View style={sl.viewToggle}>
-              <TouchableOpacity style={[sl.viewBtn, view === 'grid' && sl.viewBtnOn]} onPress={() => setView('grid')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Grid view">
+              <TouchableOpacity style={[sl.viewBtn, view === 'grid' && sl.viewBtnOn]} onPress={() => { Haptics.selectionAsync(); setView('grid'); }} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="Grid view">
                 <Text style={[sl.viewGlyph, view === 'grid' && sl.viewGlyphOn]}>▦</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[sl.viewBtn, view === 'list' && sl.viewBtnOn]} onPress={() => setView('list')} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="List view">
+              <TouchableOpacity style={[sl.viewBtn, view === 'list' && sl.viewBtnOn]} onPress={() => { Haptics.selectionAsync(); setView('list'); }} activeOpacity={0.8} accessibilityRole="button" accessibilityLabel="List view">
                 <Text style={[sl.viewGlyph, view === 'list' && sl.viewGlyphOn]}>☰</Text>
               </TouchableOpacity>
             </View>

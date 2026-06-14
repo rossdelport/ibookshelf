@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useUserStore } from '../../store/userStore';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 
@@ -53,7 +54,7 @@ export default function UnreadScreen() {
         {OPTIONS.map((opt, i) => {
           const active = selected === i;
           return (
-            <TouchableOpacity key={opt.label} style={[ob.row, active && ob.rowActive]} onPress={() => setSelected(i)} activeOpacity={0.8}>
+            <TouchableOpacity key={opt.label} style={[ob.row, active && ob.rowActive]} onPress={() => { Haptics.selectionAsync(); setSelected(i); }} activeOpacity={0.8}>
               <Text style={[ob.rowLabel, active && ob.rowLabelActive]}>{opt.label}</Text>
               <Text style={ob.rowEmoji}>{opt.emoji}</Text>
             </TouchableOpacity>
@@ -66,7 +67,7 @@ export default function UnreadScreen() {
       <View style={ob.footer}>
         {selected !== null && (
           <Animated.View style={{ opacity: appear, transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [12, 0] }) }] }}>
-            <TouchableOpacity style={ob.cta} onPress={() => { if (selected !== null) setLibrarySize(OPTIONS[selected].label); router.push('/onboarding/mirror'); }} activeOpacity={0.9}>
+            <TouchableOpacity style={ob.cta} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); if (selected !== null) setLibrarySize(OPTIONS[selected].label); router.push('/onboarding/mirror'); }} activeOpacity={0.9}>
               <Text style={ob.ctaText}>Continue</Text>
             </TouchableOpacity>
           </Animated.View>

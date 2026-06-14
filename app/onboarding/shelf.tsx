@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useUserStore } from '../../store/userStore';
 import { ANIMALS } from '../../constants/animals';
 import { AvatarFace } from '../../components/AvatarFace';
@@ -57,7 +58,7 @@ export default function ShelfScreen() {
       </View>
 
       <View style={sh.footer}>
-        <TouchableOpacity style={sh.cta} onPress={() => router.push('/onboarding/signup')} activeOpacity={0.9}>
+        <TouchableOpacity style={sh.cta} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/onboarding/signup'); }} activeOpacity={0.9}>
           <Text style={sh.ctaText}>Let's go</Text>
         </TouchableOpacity>
       </View>

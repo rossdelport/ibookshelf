@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useUserStore } from '../../store/userStore';
 import { GENRES } from '../../constants/genres';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
@@ -41,7 +42,7 @@ export default function GenresScreen() {
         {GENRES.map(({ label, emoji }) => {
           const active = selected.includes(label);
           return (
-            <TouchableOpacity key={label} style={[gen.chip, active && gen.chipActive]} onPress={() => toggleGenre(label)} activeOpacity={0.8}>
+            <TouchableOpacity key={label} style={[gen.chip, active && gen.chipActive]} onPress={() => { Haptics.selectionAsync(); toggleGenre(label); }} activeOpacity={0.8}>
               <Text style={gen.chipEmoji}>{emoji}</Text>
               <Text style={[gen.chipLabel, active && gen.chipLabelActive]}>{label}</Text>
             </TouchableOpacity>
@@ -50,7 +51,7 @@ export default function GenresScreen() {
       </View>
 
       <View style={gen.footer}>
-        <TouchableOpacity style={gen.cta} onPress={() => router.push('/onboarding/avatar')} activeOpacity={0.9}>
+        <TouchableOpacity style={gen.cta} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/onboarding/avatar'); }} activeOpacity={0.9}>
           <Text style={gen.ctaText}>Continue</Text>
         </TouchableOpacity>
       </View>

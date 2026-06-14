@@ -181,7 +181,7 @@ export default function BookDetailScreen() {
               const on = (entry.shelves ?? []).includes(sh.name);
               const tint = shelfChipColor(sh.color);
               return (
-                <TouchableOpacity key={sh.name} style={[d.chip, on && d.chipActive, on ? { backgroundColor: tint, borderColor: tint } : null]} onPress={() => toggleBookShelf(id, sh.name)} activeOpacity={0.8}>
+                <TouchableOpacity key={sh.name} style={[d.chip, on && d.chipActive, on ? { backgroundColor: tint, borderColor: tint } : null]} onPress={() => { Haptics.selectionAsync(); toggleBookShelf(id, sh.name); }} activeOpacity={0.8}>
                   <Text style={d.chipEmoji}>{sh.emoji}</Text>
                   <Text style={[d.chipText, on && d.chipTextActive]}>{sh.name}</Text>
                 </TouchableOpacity>

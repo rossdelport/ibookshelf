@@ -1,6 +1,7 @@
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 
 const TOTAL_STEPS = 9;
@@ -52,7 +53,7 @@ export default function MirrorScreen() {
       </View>
 
       <View style={mir.footer}>
-        <TouchableOpacity style={mir.cta} onPress={() => router.push('/onboarding/genres')} activeOpacity={0.9}>
+        <TouchableOpacity style={mir.cta} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/onboarding/genres'); }} activeOpacity={0.9}>
           <Text style={mir.ctaText}>I'm ready</Text>
         </TouchableOpacity>
       </View>

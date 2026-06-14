@@ -3,6 +3,7 @@ import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 import { CameraIcon, HeartIcon, HomeIcon, ProfileIcon, ShelfIcon } from '../../components/icons';
 import { colors, fonts } from '../../constants/theme';
 
@@ -39,7 +40,10 @@ function FableTabBar({ state, navigation }: BottomTabBarProps) {
 
         const onPress = () => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-          if (!isActive && !event.defaultPrevented) navigation.navigate(route.name);
+          if (!isActive && !event.defaultPrevented) {
+            Haptics.selectionAsync();
+            navigation.navigate(route.name);
+          }
         };
 
         // Scan = the app's primary action → a larger, raised button.

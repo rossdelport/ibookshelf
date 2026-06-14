@@ -2,6 +2,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuthStore } from '../store/authStore';
 import { colors, fonts, radius, type as ty, shadow } from '../constants/theme';
 
@@ -27,7 +28,7 @@ export default function WelcomeScreen() {
       </View>
 
       <View style={styles.footer}>
-        <TouchableOpacity style={styles.button} onPress={() => router.push('/onboarding/unread')} activeOpacity={0.9}>
+        <TouchableOpacity style={styles.button} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/onboarding/unread'); }} activeOpacity={0.9}>
           <Text style={styles.buttonText}>Get started</Text>
         </TouchableOpacity>
         <Text style={styles.loginText}>
