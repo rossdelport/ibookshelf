@@ -22,7 +22,7 @@ export default function WelcomeScreen() {
           </View>
         </View>
 
-        <Text style={styles.title}>Fable</Text>
+        <Text style={styles.title}>iBookshelf</Text>
         <Text style={styles.subtitle}>Your home library, in your pocket</Text>
         <Text style={styles.tagline}>Catalogue every book you own, never buy a duplicate, and keep notes as you read.</Text>
       </View>
@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
   iconShadow: { width: 140, height: 140, borderRadius: 34, marginBottom: 32, ...shadow.card },
   iconClip: { width: 140, height: 140, borderRadius: 34, overflow: 'hidden', backgroundColor: colors.chip },
   iconGif: { width: '100%', height: '100%', transform: [{ scale: 1.05 }] },
-  title: { fontSize: 46, fontFamily: fonts.light, color: colors.ink1, letterSpacing: -1, marginBottom: 10 },
+  title: { fontSize: 40, fontFamily: fonts.light, color: colors.ink1, letterSpacing: -1, marginBottom: 10 },
   subtitle: { fontFamily: fonts.medium, ...ty.body, color: colors.ink2, marginBottom: 12 },
   tagline: { fontFamily: fonts.regular, ...ty.bodyLg, color: colors.ink3, textAlign: 'center', maxWidth: 320 },
   footer: { paddingHorizontal: 24, paddingBottom: 16, gap: 16 },

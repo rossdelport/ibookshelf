@@ -147,7 +147,7 @@ export default function ScanScreen() {
       ) : (
         <View style={[StyleSheet.absoluteFill, sc.permFill]}>
           <Text style={sc.permText}>
-            {permission && !permission.canAskAgain ? 'Camera access is off. Enable it in Settings to scan books.' : 'Fable needs your camera to scan book barcodes.'}
+            {permission && !permission.canAskAgain ? 'Camera access is off. Enable it in Settings to scan books.' : 'iBookshelf needs your camera to scan book barcodes.'}
           </Text>
           {permission && !permission.granted && permission.canAskAgain && (
             <TouchableOpacity style={sc.permBtn} onPress={requestPermission} activeOpacity={0.85}>

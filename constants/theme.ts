@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Fable design tokens — ported from the Food Mood design system (its handoff
+// iBookshelf design tokens — ported from the Food Mood design system (its handoff
 // README + theme.ts), adapted for a books/reading app. This is the single source
 // of truth: screens import from here, never hardcode hexes or font names.
 //
@@ -26,7 +26,7 @@ export const colors = {
   accentText: '#F3EFE9',  // text on accent
   accentSoft: '#EBEAE7',  // tonal accent wash (selected chip bg)
 
-  // ── Fable extensions (kept minimal + on-palette) ──────────────────────────
+  // ── iBookshelf extensions (kept minimal + on-palette) ─────────────────────
   star: '#2A2622',        // filled star = ink1; empty uses `line`
   success: '#5E7257',     // "owned" / finished — muted sage (Food Mood calm hue)
   successSoft: '#E7EDE3',

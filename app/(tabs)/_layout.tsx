@@ -19,7 +19,7 @@ const TABS: { name: string; label: string; Icon: IconCmp }[] = [
 ];
 
 // Frosted 5-tab bar — dark variant on the camera screen.
-function FableTabBar({ state, navigation }: BottomTabBarProps) {
+function AppTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const dark = state.routes[state.index]?.name === 'scan';
   const active = dark ? colors.accentText : colors.accent;
@@ -71,7 +71,7 @@ function FableTabBar({ state, navigation }: BottomTabBarProps) {
 
 export default function TabsLayout() {
   return (
-    <Tabs tabBar={(props) => <FableTabBar {...props} />} screenOptions={{ headerShown: false }}>
+    <Tabs tabBar={(props) => <AppTabBar {...props} />} screenOptions={{ headerShown: false }}>
       {TABS.map((t) => (
         <Tabs.Screen key={t.name} name={t.name} />
       ))}

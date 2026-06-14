@@ -70,7 +70,7 @@ export default function ReviewScreen() {
 
       {/* ── Head ─────────────────────────────────────── */}
       <View style={rv.head}>
-        <Text style={rv.title}>Loving Fable so far?</Text>
+        <Text style={rv.title}>Loving iBookshelf so far?</Text>
         <Text style={rv.sub}>A quick rating helps fellow readers find the app and keep it growing.</Text>
       </View>
 
@@ -81,7 +81,7 @@ export default function ReviewScreen() {
             <Image source={require('../../assets/images/logo_fable.png')} style={rv.emblemImg} resizeMode="contain" />
           </View>
           <Text style={rv.q}>Rate your experience</Text>
-          <Text style={rv.cap}>Tap a star to rate Fable on the App Store</Text>
+          <Text style={rv.cap}>Tap a star to rate iBookshelf on the App Store</Text>
 
           <View style={rv.stars}>
             {[0, 1, 2, 3, 4].map((i) => (

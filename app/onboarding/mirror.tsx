@@ -46,7 +46,7 @@ export default function MirrorScreen() {
           <Text style={mir.saveLabel}>
             {'is what readers typically waste on '}
             <Text style={mir.saveBold}>duplicate books</Text>
-            {' — money Fable helps you keep.'}
+            {' — money iBookshelf helps you keep.'}
           </Text>
         </View>
       </View>
