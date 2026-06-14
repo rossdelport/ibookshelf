@@ -56,7 +56,8 @@
       ],
       "expo-apple-authentication",
       "expo-web-browser",
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

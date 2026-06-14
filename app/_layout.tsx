@@ -1,7 +1,10 @@
 import { useEffect } from 'react';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 import * as Sentry from '@sentry/react-native';
+import fontMap from '../constants/fontMap';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { useUserStore } from '../store/userStore';
@@ -12,6 +15,10 @@ import { ErrorScreen } from '../components/ErrorScreen';
 
 // Start crash reporting as early as possible (no-op until a DSN is configured).
 initSentry();
+
+// Keep the native splash up until the brand fonts (Outfit + Newsreader) are ready,
+// so text never flashes in a fallback system font.
+SplashScreen.preventAutoHideAsync();
 
 // Root error boundary — expo-router renders this if any screen throws, instead
 // of white-screening; ErrorScreen also reports the error to Sentry.
@@ -61,6 +68,11 @@ function handleSignedOut() {
 function RootLayout() {
   const setSession = useAuthStore((s) => s.setSession);
   const setInitializing = useAuthStore((s) => s.setInitializing);
+  const [fontsLoaded] = useFonts(fontMap);
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
 
   useEffect(() => {
     let mounted = true;
@@ -81,6 +93,9 @@ function RootLayout() {
       sub.subscription.unsubscribe();
     };
   }, [setSession, setInitializing]);
+
+  // Hold the splash (return null) until fonts are ready.
+  if (!fontsLoaded) return null;
 
   return (
     <>
