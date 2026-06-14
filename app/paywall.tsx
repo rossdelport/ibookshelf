@@ -1,257 +1,160 @@
-import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { CloseIcon } from '../components/icons';
+import * as Haptics from 'expo-haptics';
+import { BookCover } from '../components/BookCover';
+import { CheckIcon } from '../components/icons';
+import { colors, fonts, radius, type as ty, shadow } from '../constants/theme';
 
-// ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
-const INK   = '#332C24';
-const MUTE  = '#A89A88';
-const AMBER = '#E8A838';
-const GREEN = '#5BA66E';
-const WHITE = '#FFFFFF';
-
-// Premium is additive only — themes, cosmetics, deeper insights. It NEVER
-// gates a user's own library (books/shelves/notes/scan/sync stay free).
-const PREMIUM = [
-  'Premium shelf themes',
-  'Soul animal auras: golden, obsidian, silver',
-  'Year-in-review & advanced insights',
-  'Shareable Wrapped cards, no watermark',
-  'Animated lock-screen widgets',
+// ── Floating book covers (constellation hero) ──────────────────────────────
+type CoverSpec = { title: string; author: string; width: number; left: `${number}%`; top: `${number}%`; dur: number; delay: number; amp: number; opacity?: number; hero?: boolean };
+const COVERS: CoverSpec[] = [
+  { hero: true, title: 'Aurelia', author: 'M. Vance', width: 104, left: '50%', top: '44%', dur: 6.6, delay: 0, amp: 12 },
+  { title: 'Emberfall', author: 'R. Hale', width: 58, left: '18%', top: '16%', dur: 5.2, delay: 0.4, amp: 9 },
+  { title: 'The Tide', author: 'S. Okafor', width: 60, left: '78%', top: '18%', dur: 5.9, delay: 0.9, amp: 10 },
+  { title: 'Nightwood', author: 'L. Marsh', width: 50, left: '83%', top: '60%', dur: 4.9, delay: 0.2, amp: 8 },
+  { title: 'Saltlight', author: 'A. Frost', width: 46, left: '12%', top: '64%', dur: 6.3, delay: 1.1, amp: 9, opacity: 0.92 },
+  { title: 'Wildwood', author: 'T. Reyes', width: 42, left: '46%', top: '84%', dur: 5.0, delay: 0.6, amp: 7 },
 ];
 
-// The core job-to-be-done is always free — and we say so, loudly.
-const FREE = [
-  'Unlimited books & shelves',
-  'Barcode scan + duplicate check',
-  'Search & manual add',
-  'Notes & reading progress',
-  'Cloud backup & sync',
+const BENEFITS = [
+  'Unlimited shelves and collections',
+  'Custom shelf themes',
+  'Reading stats and insights',
+  'Your whole library, synced forever',
+  'Early access to new features',
 ];
 
-const THEMES: { key: string; label: string; colors: [string, string] }[] = [
-  { key: 'fantasy', label: 'Dark Fantasy',     colors: ['#2A1F44', '#4A2A52'] },
-  { key: 'romance', label: 'Pink Romance',     colors: ['#7A3B57', '#C66A82'] },
-  { key: 'leather', label: 'Leather Business', colors: ['#5A3A1E', '#8A5A2E'] },
-];
-
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-/** Check glyph built from two rotated bars */
-function Check({ color = WHITE, size = 11 }: { color?: string; size?: number }) {
+function FloatCover({ spec }: { spec: CoverSpec }) {
+  const y = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(y, { toValue: 1, duration: spec.dur * 1000, delay: spec.delay * 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(y, { toValue: 0, duration: spec.dur * 1000, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [spec.dur, spec.delay, y]);
+  const translateY = y.interpolate({ inputRange: [0, 1], outputRange: [-spec.amp, spec.amp] });
   return (
-    <View style={{ width: size, height: size, justifyContent: 'center' }}>
-      <View style={{
-        position: 'absolute', left: 0, bottom: size * 0.2,
-        width: size * 0.42, height: 2, borderRadius: 1, backgroundColor: color,
-        transform: [{ rotate: '45deg' }],
-      }} />
-      <View style={{
-        position: 'absolute', left: size * 0.26, bottom: size * 0.2,
-        width: size * 0.72, height: 2, borderRadius: 1, backgroundColor: color,
-        transform: [{ rotate: '-45deg' }],
-      }} />
+    <Animated.View pointerEvents="none" style={{ position: 'absolute', left: spec.left, top: spec.top, marginLeft: -spec.width / 2, marginTop: -spec.width * 0.75, width: spec.width, opacity: spec.opacity ?? 1, transform: [{ translateY }] }}>
+      <BookCover title={spec.title} author={spec.author} />
+    </Animated.View>
+  );
+}
+
+function PlanCard({ plan, active, onPick }: { plan: 'yearly' | 'lifetime'; active: boolean; onPick: () => void }) {
+  const yearly = plan === 'yearly';
+  return (
+    <Pressable style={[pw.card, active && pw.cardActive]} onPress={onPick}>
+      <View style={[pw.radio, active && pw.radioOn]}>{active && <CheckIcon color={colors.bg} size={11} />}</View>
+      <Text style={pw.cardTitle}>{yearly ? 'Yearly' : 'Lifetime'}</Text>
+      {yearly ? <Text style={pw.saveBadge}>SAVE 58%</Text> : <View style={{ height: 19, marginTop: 8 }} />}
+      <Text style={pw.price}>{yearly ? '$29.99' : '$59.99'}<Text style={pw.priceUnit}>{yearly ? ' /year' : ' once'}</Text></Text>
+      <Text style={pw.priceSub}>{yearly ? '7-day free trial, then $2.50/mo' : 'One-time payment'}</Text>
+    </Pressable>
+  );
+}
+
+export default function Paywall() {
+  const insets = useSafeAreaInsets();
+  const [plan, setPlan] = useState<'yearly' | 'lifetime'>('yearly');
+  const [bi, setBi] = useState(0);
+  const fade = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      Animated.timing(fade, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
+        setBi((i) => (i + 1) % BENEFITS.length);
+        Animated.timing(fade, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+      });
+    }, 2600);
+    return () => clearInterval(t);
+  }, [fade]);
+
+  const close = () => router.back();
+
+  // TODO(1.1): wire real StoreKit / RevenueCat purchase + restore here.
+  const subscribe = () => { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); close(); };
+  const onRestore = () => close();
+
+  const trial = plan === 'yearly';
+
+  return (
+    <View style={[pw.screen, { paddingTop: insets.top + 8 }]}>
+      <View style={pw.topBar}>
+        <Pressable hitSlop={10} onPress={close}><Text style={pw.skip}>Skip</Text></Pressable>
+        <View style={pw.pill}>
+          <Text style={pw.pillGlyph}>✦</Text>
+          <Text style={pw.pillText}>PLUS</Text>
+        </View>
+        <Pressable hitSlop={10} onPress={onRestore}><Text style={pw.restore}>Restore</Text></Pressable>
+      </View>
+
+      <Text style={pw.h1}>Unlock the full story</Text>
+
+      <View style={pw.field}>
+        <LinearGradient colors={['rgba(60,48,36,0.08)', 'rgba(60,48,36,0.03)', 'rgba(250,248,244,0)']} style={pw.fieldGlow} />
+        {COVERS.map((s, i) => <FloatCover key={i} spec={s} />)}
+      </View>
+
+      <View style={pw.benefitWrap}>
+        <Animated.Text style={[pw.benefit, { opacity: fade }]}>{BENEFITS[bi]}</Animated.Text>
+        <View style={pw.dots}>
+          {BENEFITS.map((_, i) => <View key={i} style={[pw.dot, i === bi && pw.dotOn]} />)}
+        </View>
+      </View>
+
+      <View style={pw.plans}>
+        <PlanCard plan="yearly" active={plan === 'yearly'} onPick={() => { Haptics.selectionAsync(); setPlan('yearly'); }} />
+        <PlanCard plan="lifetime" active={plan === 'lifetime'} onPick={() => { Haptics.selectionAsync(); setPlan('lifetime'); }} />
+      </View>
+
+      <View style={[pw.footer, { paddingBottom: insets.bottom + 14 }]}>
+        <Pressable style={pw.cta} onPress={subscribe}>
+          <Text style={pw.ctaText}>{trial ? 'Start 7-day free trial' : 'Get Lifetime'}</Text>
+        </Pressable>
+        <Text style={pw.reassure}>{trial ? '7 days free, then $29.99/year. Cancel anytime.' : '$59.99 billed once. Yours forever.'}</Text>
+      </View>
     </View>
   );
 }
 
-function ThemeCard({ label, colors }: { label: string; colors: [string, string] }) {
-  return (
-    <LinearGradient colors={colors} start={{ x: 0.1, y: 0 }} end={{ x: 0.9, y: 1 }} style={pw.theme}>
-      <View style={[pw.plank, { bottom: 38 }]} />
-      <View style={[pw.plank, { bottom: 18 }]} />
-      <Text style={pw.themeLabel}>{label}</Text>
-    </LinearGradient>
-  );
-}
-
-// ── Main screen ────────────────────────────────────────────────────────────
-
-export default function PaywallScreen() {
-  const [plan, setPlan] = useState<'monthly' | 'yearly'>('yearly');
-
-  // Purchase is stubbed for now — both paths just close the modal.
-  const dismiss = () => router.back();
-
-  return (
-    <LinearGradient colors={['#FBE9C9', '#FAF3E6']} start={{ x: 0.5, y: 0 }} end={{ x: 0.5, y: 0.55 }} style={pw.fill}>
-      <SafeAreaView style={pw.fill}>
-        {/* ── Topbar: close ──────────────────────────── */}
-        <View style={pw.topbar}>
-          <TouchableOpacity style={pw.closeBtn} onPress={dismiss} activeOpacity={0.7}>
-            <CloseIcon color={INK} size={20} />
-          </TouchableOpacity>
-        </View>
-
-        {/* ── Head ───────────────────────────────────── */}
-        <View style={pw.head}>
-          <Text style={pw.title}>Unlock the full{'\n'}iBookshelf experience.</Text>
-          <Text style={pw.subtitle}>Your whole library is always free — Premium just adds the extras.</Text>
-        </View>
-
-        {/* ── Scrollable content ─────────────────────── */}
-        <ScrollView style={pw.body} showsVerticalScrollIndicator={false} contentContainerStyle={pw.bodyContent}>
-          {/* Theme carousel (a premium taste) */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={pw.themesRow} contentContainerStyle={pw.themesContent}>
-            {THEMES.map((t) => (
-              <ThemeCard key={t.key} label={t.label} colors={t.colors} />
-            ))}
-          </ScrollView>
-
-          {/* With Premium */}
-          <Text style={pw.sectionLabel}>With Premium</Text>
-          <View style={pw.features}>
-            {PREMIUM.map((f) => (
-              <View key={f} style={pw.feat}>
-                <View style={pw.featCheck}><Check size={11} /></View>
-                <Text style={pw.featText}>{f}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Always free — the reassurance block */}
-          <View style={pw.freeCard}>
-            <Text style={pw.freeLabel}>Always free</Text>
-            {FREE.map((f) => (
-              <View key={f} style={pw.freeRow}>
-                <View style={pw.freeCheck}><Check size={11} color={WHITE} /></View>
-                <Text style={pw.freeText}>{f}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Plan selector */}
-          <View style={pw.plans}>
-            <TouchableOpacity style={[pw.plan, plan === 'monthly' && pw.planSel]} onPress={() => setPlan('monthly')} activeOpacity={0.9}>
-              <Text style={pw.planK}>Monthly</Text>
-              <Text style={pw.planAmt}>$9.99 <Text style={pw.planAmtUnit}>/mo</Text></Text>
-              <View style={[pw.planMark, plan === 'monthly' && pw.planMarkOn]}>
-                {plan === 'monthly' && <Check size={12} />}
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[pw.plan, plan === 'yearly' && pw.planSel]} onPress={() => setPlan('yearly')} activeOpacity={0.9}>
-              <View style={pw.planBadge}><Text style={pw.planBadgeText}>7 DAYS FREE</Text></View>
-              <Text style={pw.planK}>Yearly</Text>
-              <Text style={pw.planAmt}>$59.99</Text>
-              <View style={[pw.planMark, plan === 'yearly' && pw.planMarkOn]}>
-                {plan === 'yearly' && <Check size={12} />}
-              </View>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-
-        {/* ── Footer ─────────────────────────────────── */}
-        <View style={pw.footer}>
-          <TouchableOpacity style={pw.cta} onPress={dismiss} activeOpacity={0.85}>
-            <Text style={pw.ctaText}>Start my 7-day free trial  →</Text>
-          </TouchableOpacity>
-          <Text style={pw.footNote}>Cancel anytime. No charge until trial ends.</Text>
-          <TouchableOpacity onPress={dismiss} activeOpacity={0.7}>
-            <Text style={pw.tinyLink}>Maybe later</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    </LinearGradient>
-  );
-}
-
 const pw = StyleSheet.create({
-  fill: { flex: 1 },
+  screen: { flex: 1, backgroundColor: colors.bg },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, minHeight: 38 },
+  skip: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink3 },
+  restore: { fontFamily: fonts.medium, fontSize: 14, color: colors.ink3 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 6, paddingLeft: 11, paddingRight: 15, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line },
+  pillGlyph: { fontSize: 11, color: colors.ink2 },
+  pillText: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 2.5, color: colors.ink2 },
 
-  // ── Topbar
-  topbar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 18, paddingTop: 12 },
-  closeBtn: {
-    width: 38, height: 38, borderRadius: 999, backgroundColor: WHITE,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
-    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
-  },
+  h1: { fontFamily: fonts.serifItalic, fontSize: 33, lineHeight: 38, letterSpacing: -0.5, color: colors.ink1, textAlign: 'center', marginTop: 12, paddingHorizontal: 36 },
 
-  // ── Head — centered Lora serif (§3 ob-title.serif)
-  head: { paddingHorizontal: 22, marginTop: 8 },
-  title: { fontSize: 30, fontWeight: '600', fontFamily: 'Georgia', color: INK, letterSpacing: -0.4, lineHeight: 36 },
-  subtitle: { fontSize: 14, fontWeight: '600', color: '#8a6a32', marginTop: 10, lineHeight: 20 },
+  field: { flex: 1, minHeight: 200, position: 'relative', marginVertical: 4 },
+  fieldGlow: { position: 'absolute', left: '8%', right: '8%', top: '4%', bottom: '4%', borderRadius: 999 },
 
-  // ── Scroll body
-  body: { flex: 1, marginTop: 4 },
-  bodyContent: { paddingHorizontal: 22, paddingBottom: 8 },
+  benefitWrap: { alignItems: 'center', paddingHorizontal: 24 },
+  benefit: { fontFamily: fonts.medium, ...ty.bodySm, color: colors.ink2, height: 22 },
+  dots: { flexDirection: 'row', gap: 6, marginTop: 11 },
+  dot: { width: 6, height: 6, borderRadius: 999, backgroundColor: colors.line },
+  dotOn: { width: 16, backgroundColor: colors.ink1 },
 
-  // ── Theme carousel
-  themesRow: { marginTop: 18, marginHorizontal: -22 },
-  themesContent: { paddingHorizontal: 22, gap: 12, paddingBottom: 4 },
-  theme: {
-    width: 132, height: 150, borderRadius: 18, padding: 12,
-    overflow: 'hidden', justifyContent: 'flex-end',
-    shadowColor: '#5A3C23', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 20, elevation: 5,
-  },
-  plank: {
-    position: 'absolute', left: 10, right: 10, height: 9, borderRadius: 2,
-    backgroundColor: 'rgba(255,255,255,0.18)',
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.35)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.22)',
-  },
-  themeLabel: {
-    fontSize: 13, fontWeight: '800', color: WHITE,
-    textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
-  },
+  plans: { flexDirection: 'row', gap: 10, paddingHorizontal: 24, paddingTop: 18 },
+  card: { flex: 1, borderRadius: radius.card, padding: 15, borderWidth: 1.5, borderColor: colors.line },
+  cardActive: { borderColor: colors.accent, backgroundColor: colors.card, ...shadow.cardSoft },
+  radio: { position: 'absolute', top: 13, right: 13, width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  radioOn: { borderColor: colors.accent, backgroundColor: colors.accent },
+  cardTitle: { fontFamily: fonts.semibold, ...ty.cardTitle, color: colors.ink1 },
+  saveBadge: { alignSelf: 'flex-start', marginTop: 8, fontFamily: fonts.semibold, fontSize: 9.5, letterSpacing: 0.6, color: colors.success, backgroundColor: colors.successSoft, paddingVertical: 3, paddingHorizontal: 7, borderRadius: 999, overflow: 'hidden' },
+  price: { fontFamily: fonts.semibold, fontSize: 21, letterSpacing: -0.3, color: colors.ink1, marginTop: 9 },
+  priceUnit: { fontFamily: fonts.medium, fontSize: 12.5, color: colors.ink3 },
+  priceSub: { fontFamily: fonts.regular, fontSize: 11.5, lineHeight: 16, color: colors.ink3, marginTop: 4 },
 
-  // ── Section label
-  sectionLabel: {
-    fontSize: 12, fontWeight: '800', letterSpacing: 1.3, textTransform: 'uppercase',
-    color: '#C99A4C', marginTop: 24, marginBottom: 12,
-  },
-
-  // ── Premium feature grid (2 cols)
-  features: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 9, columnGap: 14 },
-  feat: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, width: '43%', flexGrow: 1, flexBasis: '43%' },
-  featCheck: { width: 18, height: 18, borderRadius: 9, backgroundColor: AMBER, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
-  featText: { flex: 1, fontSize: 12.5, fontWeight: '600', color: '#4a4036', lineHeight: 16 },
-
-  // ── Always-free reassurance card
-  freeCard: {
-    marginTop: 22, backgroundColor: '#EAF4EC', borderRadius: 18, padding: 16,
-    borderWidth: 0.5, borderColor: 'rgba(91,166,110,0.30)',
-  },
-  freeLabel: { fontSize: 12, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase', color: GREEN, marginBottom: 10 },
-  freeRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 4 },
-  freeCheck: { width: 18, height: 18, borderRadius: 9, backgroundColor: GREEN, alignItems: 'center', justifyContent: 'center' },
-  freeText: { flex: 1, fontSize: 13.5, fontWeight: '700', color: '#3f5f48' },
-
-  // ── Plans (2 cols)
-  plans: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  plan: {
-    flex: 1, position: 'relative', backgroundColor: WHITE,
-    borderWidth: 2, borderColor: 'rgba(139,94,60,0.16)', borderRadius: 18,
-    paddingTop: 16, paddingHorizontal: 16, paddingBottom: 14,
-  },
-  planSel: {
-    borderColor: INK, backgroundColor: '#FFFBF2',
-    shadowColor: '#5A3C23', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.16, shadowRadius: 24, elevation: 6,
-  },
-  planK:       { fontSize: 15, fontWeight: '800', color: INK },
-  planAmt:     { fontSize: 16, fontWeight: '800', color: INK, marginTop: 3 },
-  planAmtUnit: { fontSize: 12, fontWeight: '600', color: MUTE },
-  planMark: {
-    position: 'absolute', top: 16, right: 16, width: 22, height: 22, borderRadius: 11,
-    borderWidth: 2, borderColor: '#DBD0BD', alignItems: 'center', justifyContent: 'center',
-  },
-  planMarkOn: { borderWidth: 0, backgroundColor: INK },
-  planBadge: {
-    position: 'absolute', top: -11, right: 14, backgroundColor: INK,
-    borderRadius: 999, paddingVertical: 4, paddingHorizontal: 10,
-  },
-  planBadgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, color: WHITE },
-
-  // ── Footer
-  footer: { paddingHorizontal: 20, paddingBottom: 16, paddingTop: 10 },
-  cta: {
-    backgroundColor: AMBER, borderRadius: 18, paddingVertical: 19, alignItems: 'center',
-    shadowColor: '#E29A2A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 5,
-  },
-  ctaText:  { color: WHITE, fontSize: 17, fontWeight: '800', letterSpacing: 0.2 },
-  footNote: { textAlign: 'center', fontSize: 12.5, fontWeight: '600', color: MUTE, marginTop: 14 },
-  tinyLink: { textAlign: 'center', fontSize: 13, fontWeight: '700', color: MUTE, marginTop: 12 },
+  footer: { paddingHorizontal: 24, paddingTop: 16 },
+  cta: { backgroundColor: colors.accent, borderRadius: radius.button, paddingVertical: 17, alignItems: 'center', ...shadow.button },
+  ctaText: { fontFamily: fonts.semibold, ...ty.label, color: colors.accentText },
+  reassure: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: colors.ink3, textAlign: 'center', marginTop: 11, paddingHorizontal: 6 },
 });
