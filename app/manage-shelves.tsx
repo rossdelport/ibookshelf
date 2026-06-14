@@ -5,34 +5,23 @@ import { router } from 'expo-router';
 import { useUserStore } from '../store/userStore';
 import { useBookshelfStore } from '../store/bookshelfStore';
 import { shelfChipColor } from '../constants/shelfColors';
-
-// ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
-const INK   = '#332C24';
-const MUTE  = '#A89A88';
-const BROWN = '#8B5E3C';
-const PAPER = '#FAF8F3';
-const WHITE = '#FFFFFF';
+import { colors, fonts, radius, type as ty, shadow } from '../constants/theme';
 
 export default function ManageShelvesScreen() {
   const shelves = useUserStore((s) => s.profile.shelves);
   const moveShelf = useUserStore((s) => s.moveShelf);
   const shelf = useBookshelfStore((s) => s.shelf);
 
-  // Book count per shelf name (entries filed on it).
   const counts = useMemo(() => {
     const c: Record<string, number> = {};
-    for (const entry of Object.values(shelf)) {
-      for (const n of entry.shelves ?? []) c[n] = (c[n] ?? 0) + 1;
-    }
+    for (const entry of Object.values(shelf)) for (const n of entry.shelves ?? []) c[n] = (c[n] ?? 0) + 1;
     return c;
   }, [shelf]);
 
   return (
     <SafeAreaView style={ms.safe}>
       <View style={ms.topbar}>
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
-          <Text style={ms.cancel}>Done</Text>
-        </TouchableOpacity>
+        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}><Text style={ms.done}>Done</Text></TouchableOpacity>
         <Text style={ms.topTitle}>Manage shelves</Text>
         <View style={{ width: 56 }} />
       </View>
@@ -46,14 +35,8 @@ export default function ManageShelvesScreen() {
         ) : (
           shelves.map((s, i) => (
             <View key={s.name} style={ms.row}>
-              <TouchableOpacity
-                style={ms.rowMain}
-                activeOpacity={0.7}
-                onPress={() => router.push({ pathname: '/edit-shelf', params: { name: s.name } })}
-              >
-                <View style={[ms.dot, { backgroundColor: shelfChipColor(s.color) }]}>
-                  <Text style={ms.dotEmoji}>{s.emoji}</Text>
-                </View>
+              <TouchableOpacity style={ms.rowMain} activeOpacity={0.7} onPress={() => router.push({ pathname: '/edit-shelf', params: { name: s.name } })}>
+                <View style={[ms.dot, { backgroundColor: shelfChipColor(s.color) }]}><Text style={ms.dotEmoji}>{s.emoji}</Text></View>
                 <View style={ms.rowText}>
                   <Text style={ms.rowName} numberOfLines={1}>{s.name}</Text>
                   <Text style={ms.rowMeta}>{counts[s.name] ?? 0} book{(counts[s.name] ?? 0) === 1 ? '' : 's'}</Text>
@@ -62,20 +45,10 @@ export default function ManageShelvesScreen() {
               </TouchableOpacity>
 
               <View style={ms.reorder}>
-                <TouchableOpacity
-                  style={[ms.arrowBtn, i === 0 && ms.arrowDisabled]}
-                  onPress={() => moveShelf(s.name, 'up')}
-                  disabled={i === 0}
-                  activeOpacity={0.7}
-                >
+                <TouchableOpacity style={[ms.arrowBtn, i === 0 && ms.arrowDisabled]} onPress={() => moveShelf(s.name, 'up')} disabled={i === 0} activeOpacity={0.7}>
                   <Text style={[ms.arrow, i === 0 && ms.arrowMuted]}>▲</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={[ms.arrowBtn, i === shelves.length - 1 && ms.arrowDisabled]}
-                  onPress={() => moveShelf(s.name, 'down')}
-                  disabled={i === shelves.length - 1}
-                  activeOpacity={0.7}
-                >
+                <TouchableOpacity style={[ms.arrowBtn, i === shelves.length - 1 && ms.arrowDisabled]} onPress={() => moveShelf(s.name, 'down')} disabled={i === shelves.length - 1} activeOpacity={0.7}>
                   <Text style={[ms.arrow, i === shelves.length - 1 && ms.arrowMuted]}>▼</Text>
                 </TouchableOpacity>
               </View>
@@ -92,40 +65,33 @@ export default function ManageShelvesScreen() {
 }
 
 const ms = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: PAPER },
+  safe: { flex: 1, backgroundColor: colors.bg },
 
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingTop: 14, paddingBottom: 8 },
-  cancel: { fontSize: 15, fontWeight: '700', color: BROWN, width: 56 },
-  topTitle: { fontSize: 16, fontWeight: '800', color: INK },
+  done: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink2, width: 56 },
+  topTitle: { fontFamily: fonts.semibold, fontSize: 16, color: colors.ink1 },
 
-  content: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 40, gap: 10 },
+  content: { paddingHorizontal: 22, paddingTop: 10, paddingBottom: 40, gap: 10 },
 
-  row: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: WHITE, borderRadius: 16,
-    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
-    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
-  },
+  row: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.card, borderWidth: 1, borderColor: colors.line, ...shadow.cardSoft },
   rowMain: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingLeft: 12 },
-  dot: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 38, height: 38, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
   dotEmoji: { fontSize: 18 },
   rowText: { flex: 1, minWidth: 0 },
-  rowName: { fontSize: 15, fontWeight: '800', color: INK },
-  rowMeta: { fontSize: 12.5, fontWeight: '600', color: MUTE, marginTop: 1 },
-  editHint: { fontSize: 13, fontWeight: '800', color: BROWN },
+  rowName: { fontFamily: fonts.semibold, ...ty.cardTitle, color: colors.ink1 },
+  rowMeta: { fontFamily: fonts.medium, ...ty.caption, color: colors.ink3, marginTop: 1 },
+  editHint: { fontFamily: fonts.semibold, ...ty.bodySm, color: colors.ink2 },
 
-  reorder: { paddingHorizontal: 10, paddingVertical: 6, gap: 2, borderLeftWidth: 0.5, borderLeftColor: 'rgba(139,94,60,0.10)', marginLeft: 8 },
+  reorder: { paddingHorizontal: 10, paddingVertical: 6, gap: 2, borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.line, marginLeft: 8 },
   arrowBtn: { width: 30, height: 26, alignItems: 'center', justifyContent: 'center' },
   arrowDisabled: { opacity: 0.4 },
-  arrow: { fontSize: 13, fontWeight: '900', color: BROWN },
-  arrowMuted: { color: MUTE },
+  arrow: { fontSize: 13, color: colors.ink2 },
+  arrowMuted: { color: colors.ink3 },
 
-  newRow: {
-    marginTop: 4, paddingVertical: 16, borderRadius: 16, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(139,94,60,0.3)', borderStyle: 'dashed',
-  },
-  newText: { fontSize: 14.5, fontWeight: '800', color: BROWN },
+  newRow: { marginTop: 4, paddingVertical: 16, borderRadius: radius.card, alignItems: 'center', borderWidth: 1, borderColor: colors.lineStrong, borderStyle: 'dashed' },
+  newText: { fontFamily: fonts.semibold, ...ty.bodySm, color: colors.ink2 },
 
   empty: { alignItems: 'center', paddingVertical: 50, paddingHorizontal: 30, gap: 12 },
   emptyEmoji: { fontSize: 44 },
-  emptyText: { fontSize: 14.5, fontWeight: '500', color: MUTE, textAlign: 'center', lineHeight: 21 },
+  emptyText: { fontFamily: fonts.regular, ...ty.body, color: colors.ink3, textAlign: 'center' },
 });

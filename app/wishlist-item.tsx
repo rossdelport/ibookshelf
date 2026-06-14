@@ -8,15 +8,7 @@ import { HeartIcon } from '../components/icons';
 import { useBookshelfStore } from '../store/bookshelfStore';
 import { useUserStore } from '../store/userStore';
 import { shelfChipColor } from '../constants/shelfColors';
-
-// ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
-const INK   = '#332C24';
-const MUTE  = '#A89A88';
-const BROWN = '#8B5E3C';
-const AMBER = '#E8A838';
-const PAPER = '#FAF8F3';
-const WHITE = '#FFFFFF';
-const RED   = '#E0506B';
+import { colors, fonts, radius, type as ty, shadow } from '../constants/theme';
 
 function Chevron() {
   return (
@@ -42,9 +34,7 @@ export default function WishlistItemScreen() {
     return (
       <SafeAreaView style={wi.safe}>
         <View style={wi.topbar}>
-          <TouchableOpacity style={wi.backBtn} onPress={() => router.back()} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
-            <Chevron />
-          </TouchableOpacity>
+          <TouchableOpacity style={wi.backBtn} onPress={() => router.back()} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back"><Chevron /></TouchableOpacity>
         </View>
         <View style={wi.missing}><Text style={wi.missingText}>This book isn’t on your wishlist anymore.</Text></View>
       </SafeAreaView>
@@ -53,8 +43,6 @@ export default function WishlistItemScreen() {
 
   const meta = [book.publishedYear, book.pageCount ? `${book.pageCount} pages` : null].filter(Boolean).join(' · ');
 
-  // Move the book out of the wishlist and into the owned library, optionally
-  // filing it onto a chosen shelf, then return to the Wishlist tab.
   const moveToLibrary = (shelfName?: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     updateShelfEntry(id, { status: 'want_to_read' });
@@ -63,35 +51,23 @@ export default function WishlistItemScreen() {
   };
 
   const onAddToShelf = () => {
-    // 0 shelves → straight to the library; exactly 1 → that shelf; >1 → ask.
-    if (shelfDefs.length > 1) {
-      setPicking(true);
-      return;
-    }
+    if (shelfDefs.length > 1) { setPicking(true); return; }
     moveToLibrary(shelfDefs[0]?.name);
   };
 
-  const removeFromWishlist = () => {
-    removeFromShelf(id);
-    router.back();
-  };
+  const removeFromWishlist = () => { removeFromShelf(id); router.back(); };
 
   return (
     <SafeAreaView style={wi.safe}>
       <View style={wi.topbar}>
-        <TouchableOpacity style={wi.backBtn} onPress={() => router.back()} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back">
-          <Chevron />
-        </TouchableOpacity>
+        <TouchableOpacity style={wi.backBtn} onPress={() => router.back()} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Go back"><Chevron /></TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={wi.content} showsVerticalScrollIndicator={false}>
-        {/* ── Hero ───────────────────────────────────── */}
         <View style={wi.hero}>
-          <View style={wi.cover}>
-            <BookCover title={book.title} author={book.author} coverUrl={book.coverUrl} />
-          </View>
+          <View style={wi.cover}><BookCover title={book.title} author={book.author} coverUrl={book.coverUrl} /></View>
           <View style={wi.wishTag}>
-            <HeartIcon color="#C0851E" size={14} fill="#C0851E" />
+            <HeartIcon color={colors.ink2} size={14} fill={colors.ink2} />
             <Text style={wi.wishTagText}>On your wishlist</Text>
           </View>
           <Text style={wi.title}>{book.title}</Text>
@@ -103,20 +79,15 @@ export default function WishlistItemScreen() {
 
         {!picking ? (
           <>
-            {/* ── Primary action ───────────────────────── */}
-            <TouchableOpacity style={wi.cta} onPress={onAddToShelf} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel="Add to my shelf">
-              <Text style={wi.ctaText}>Add to my shelf  →</Text>
+            <TouchableOpacity style={wi.cta} onPress={onAddToShelf} activeOpacity={0.9} accessibilityRole="button" accessibilityLabel="Add to my shelf">
+              <Text style={wi.ctaText}>Add to my shelf</Text>
             </TouchableOpacity>
             <Text style={wi.ctaHint}>
               Got it now? This moves it into your library{shelfDefs.length > 1 ? ' on a shelf you choose' : shelfDefs.length === 1 ? ` on ${shelfDefs[0].emoji} ${shelfDefs[0].name}` : ''}.
             </Text>
-
-            <TouchableOpacity style={wi.remove} onPress={removeFromWishlist} activeOpacity={0.7}>
-              <Text style={wi.removeText}>Remove from wishlist</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={wi.remove} onPress={removeFromWishlist} activeOpacity={0.7}><Text style={wi.removeText}>Remove from wishlist</Text></TouchableOpacity>
           </>
         ) : (
-          // ── Shelf picker (only when more than one shelf) ──
           <View style={wi.picker}>
             <Text style={wi.pickerTitle}>Add to which shelf?</Text>
             {shelfDefs.map((sh) => (
@@ -126,12 +97,10 @@ export default function WishlistItemScreen() {
               </TouchableOpacity>
             ))}
             <TouchableOpacity style={wi.shelfRow} onPress={() => moveToLibrary(undefined)} activeOpacity={0.8}>
-              <View style={[wi.dot, { backgroundColor: '#F6EFE2' }]}><Text style={wi.dotEmoji}>📚</Text></View>
+              <View style={[wi.dot, { backgroundColor: colors.chip }]}><Text style={wi.dotEmoji}>📚</Text></View>
               <Text style={wi.shelfName}>Just my library</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={wi.cancel} onPress={() => setPicking(false)} activeOpacity={0.7}>
-              <Text style={wi.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+            <TouchableOpacity style={wi.cancel} onPress={() => setPicking(false)} activeOpacity={0.7}><Text style={wi.cancelText}>Cancel</Text></TouchableOpacity>
           </View>
         )}
       </ScrollView>
@@ -140,60 +109,42 @@ export default function WishlistItemScreen() {
 }
 
 const wi = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: PAPER },
+  safe: { flex: 1, backgroundColor: colors.bg },
 
   topbar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
-  backBtn: {
-    width: 38, height: 38, borderRadius: 999, backgroundColor: WHITE, alignItems: 'center', justifyContent: 'center',
-    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
-    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 8, elevation: 2,
-  },
+  backBtn: { width: 38, height: 38, borderRadius: 999, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
   chevronWrap: { width: 12, height: 12, alignItems: 'center', justifyContent: 'center', marginRight: -2 },
-  chevronArm1: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: INK, top: 2.5, left: 2, transform: [{ rotate: '-45deg' }] },
-  chevronArm2: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: INK, bottom: 2.5, left: 2, transform: [{ rotate: '45deg' }] },
+  chevronArm1: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: colors.ink1, top: 2.5, left: 2, transform: [{ rotate: '-45deg' }] },
+  chevronArm2: { position: 'absolute', width: 7, height: 2, borderRadius: 1, backgroundColor: colors.ink1, bottom: 2.5, left: 2, transform: [{ rotate: '45deg' }] },
 
   content: { paddingHorizontal: 22, paddingBottom: 40 },
 
-  // ── Hero
   hero: { alignItems: 'center', marginTop: 8 },
   cover: { width: 130, marginBottom: 14 },
-  wishTag: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: '#FBEACB', borderRadius: 999,
-    paddingVertical: 6, paddingHorizontal: 12, marginBottom: 12,
-  },
-  wishTagText: { fontSize: 12.5, fontWeight: '800', color: '#C0851E' },
-  title: { fontFamily: 'Georgia', fontSize: 23, fontWeight: '600', color: INK, textAlign: 'center', lineHeight: 28 },
-  author: { fontSize: 14, fontWeight: '700', color: BROWN, marginTop: 6 },
-  meta: { fontSize: 12.5, fontWeight: '600', color: MUTE, marginTop: 6 },
+  wishTag: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.chip, borderRadius: 999, paddingVertical: 6, paddingHorizontal: 12, marginBottom: 12 },
+  wishTagText: { fontFamily: fonts.semibold, ...ty.caption, color: colors.ink2 },
+  title: { fontFamily: fonts.semibold, ...ty.title, color: colors.ink1, textAlign: 'center' },
+  author: { fontFamily: fonts.serifItalic, fontSize: 15, color: colors.ink2, marginTop: 6 },
+  meta: { fontFamily: fonts.medium, ...ty.caption, color: colors.ink3, marginTop: 6 },
 
-  desc: { fontSize: 14.5, fontWeight: '500', color: '#463E33', lineHeight: 21, marginTop: 22 },
+  desc: { fontFamily: fonts.regular, ...ty.bodyLg, color: colors.ink2, marginTop: 22 },
 
-  // ── Primary CTA
-  cta: {
-    backgroundColor: AMBER, borderRadius: 18, paddingVertical: 18, alignItems: 'center', marginTop: 28,
-    shadowColor: '#E29A2A', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.4, shadowRadius: 16, elevation: 5,
-  },
-  ctaText: { color: WHITE, fontSize: 16.5, fontWeight: '800', letterSpacing: 0.2 },
-  ctaHint: { fontSize: 12.5, fontWeight: '500', color: MUTE, textAlign: 'center', marginTop: 12, lineHeight: 18 },
+  cta: { backgroundColor: colors.accent, borderRadius: radius.button, paddingVertical: 18, alignItems: 'center', marginTop: 28, ...shadow.button },
+  ctaText: { color: colors.accentText, fontFamily: fonts.semibold, ...ty.label },
+  ctaHint: { fontFamily: fonts.regular, ...ty.caption, color: colors.ink3, textAlign: 'center', marginTop: 12 },
 
   remove: { alignSelf: 'center', marginTop: 24, paddingVertical: 10, paddingHorizontal: 20 },
-  removeText: { fontSize: 14, fontWeight: '700', color: RED },
+  removeText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
 
-  // ── Shelf picker
   picker: { marginTop: 26, gap: 10 },
-  pickerTitle: { fontSize: 13, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase', color: '#B08A52', marginBottom: 4 },
-  shelfRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: WHITE, borderRadius: 16, padding: 12,
-    borderWidth: 0.5, borderColor: 'rgba(139,94,60,0.12)',
-    shadowColor: '#8B5E3C', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 1,
-  },
-  dot: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  pickerTitle: { fontFamily: fonts.medium, ...ty.eyebrow, textTransform: 'uppercase', color: colors.ink3, marginBottom: 4 },
+  shelfRow: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.card, borderRadius: radius.card, padding: 12, borderWidth: 1, borderColor: colors.line, ...shadow.cardSoft },
+  dot: { width: 40, height: 40, borderRadius: radius.chip, alignItems: 'center', justifyContent: 'center' },
   dotEmoji: { fontSize: 19 },
-  shelfName: { flex: 1, fontSize: 15.5, fontWeight: '800', color: INK },
+  shelfName: { flex: 1, fontFamily: fonts.semibold, ...ty.cardTitle, color: colors.ink1 },
   cancel: { alignSelf: 'center', marginTop: 8, paddingVertical: 10, paddingHorizontal: 20 },
-  cancelText: { fontSize: 14, fontWeight: '700', color: MUTE },
+  cancelText: { fontFamily: fonts.medium, ...ty.bodySm, color: colors.ink3 },
 
-  // ── Missing
   missing: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 40 },
-  missingText: { fontSize: 15, fontWeight: '600', color: MUTE, textAlign: 'center' },
+  missingText: { fontFamily: fonts.medium, ...ty.body, color: colors.ink3, textAlign: 'center' },
 });
