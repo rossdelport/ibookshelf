@@ -6,6 +6,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { AvatarFace } from '../../components/AvatarFace';
 import { ArrowIcon, PlayIcon, SearchIcon } from '../../components/icons';
+import { ProgressSheet } from '../../components/ProgressSheet';
 import { ANIMALS } from '../../constants/animals';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
@@ -92,6 +93,7 @@ export default function HomeScreen() {
   const updateShelfEntry = useBookshelfStore((s) => s.updateShelfEntry);
   const profile = useUserStore((s) => s.profile);
   const [refreshing, setRefreshing] = useState(false);
+  const [progressBook, setProgressBook] = useState<ShelfBook | null>(null);
 
   const av = profile.avatar ?? DEFAULT_AVATAR;
   const soulEmoji = (ANIMALS.find((a) => a.name === profile.soulAnimal) ?? ANIMALS.find((a) => a.name === 'Fox')!).emoji;
@@ -143,15 +145,18 @@ export default function HomeScreen() {
   const onHeroCta = () => {
     if (!current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (!isReading) {
-      const now = new Date().toISOString();
-      updateShelfEntry(current.id, { status: 'reading', startedAt: current.shelf.startedAt ?? now });
+    if (isReading) {
+      setProgressBook(current); // the easy track-reading entry point
+      return;
     }
+    const now = new Date().toISOString();
+    updateShelfEntry(current.id, { status: 'reading', startedAt: current.shelf.startedAt ?? now });
     openBook(current.id);
   };
-  const ctaLabel = isReading ? 'Continue reading' : current?.shelf.status === 'read' ? 'Read it again' : 'Start reading';
+  const ctaLabel = isReading ? 'Update progress' : current?.shelf.status === 'read' ? 'Read it again' : 'Start reading';
 
   return (
+    <>
     <ScrollView
       style={ho.screen}
       contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: 110 }}
@@ -197,7 +202,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={ho.startBtn} activeOpacity={0.9} onPress={onHeroCta}>
-            <PlayIcon color={colors.accentText} />
+            {!isReading && <PlayIcon color={colors.accentText} />}
             <Text style={ho.startBtnText}>{ctaLabel}</Text>
           </TouchableOpacity>
         </>
@@ -239,6 +244,8 @@ export default function HomeScreen() {
         )}
       </TouchableOpacity>
     </ScrollView>
+    <ProgressSheet book={progressBook} visible={!!progressBook} onClose={() => setProgressBook(null)} />
+    </>
   );
 }
 
