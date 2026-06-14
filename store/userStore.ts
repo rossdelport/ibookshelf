@@ -18,10 +18,11 @@ const EMPTY_PROFILE: UserProfile = {
 
 // Procedural avatar appearance chosen in onboarding/avatar.
 export interface AvatarConfig {
-  gender: 'male' | 'female';
+  gender: 'male' | 'female' | 'unspecified';
   skin: string;        // hex tone
   hairStyle: number;   // index 0–5
   hairColor: string;   // hex colour
+  shirtColor: string;  // hex colour of the t-shirt
 }
 
 export interface UserProfile {

@@ -13,7 +13,7 @@ import { forceSync } from '../../lib/sync';
 import type { ShelfBook } from '../../types/book';
 
 // Fallback avatar if the builder was skipped (mirrors avatar.tsx / profile.tsx)
-const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317' };
+const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317', shirtColor: '#232A33' };
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -186,7 +186,7 @@ export default function HomeScreen() {
       <View style={ho.topbar}>
         <View style={ho.avatarWrap}>
           <View style={ho.avatar}>
-            <AvatarFace skin={av.skin} hairStyle={av.hairStyle} hairColor={av.hairColor} size={42} />
+            <AvatarFace skin={av.skin} hairStyle={av.hairStyle} hairColor={av.hairColor} shirtColor={av.shirtColor} size={42} />
           </View>
           <View style={ho.soul}><Text style={ho.soulEmoji}>{soulEmoji}</Text></View>
         </View>

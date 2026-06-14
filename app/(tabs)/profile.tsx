@@ -17,7 +17,7 @@ const BROWN = '#8B5E3C';
 const WHITE = '#FFFFFF';
 
 // Fallback appearance if the avatar builder was skipped (mirrors avatar.tsx defaults)
-const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317' };
+const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317', shirtColor: '#232A33' };
 const HAIR_STYLE_NAMES = ['Short crop', 'Curly', 'Wavy', 'Long', 'Bun', 'Shaved'];
 
 // Three evocative traits per soul (extends the ANIMALS descriptions)
@@ -152,7 +152,7 @@ export default function ProfileScreen() {
 
           <View style={pf.avatarWrap}>
             <View style={pf.avatarRing}>
-              <AvatarFace skin={avatar.skin} hairStyle={avatar.hairStyle} hairColor={avatar.hairColor} size={124} />
+              <AvatarFace skin={avatar.skin} hairStyle={avatar.hairStyle} hairColor={avatar.hairColor} shirtColor={avatar.shirtColor} size={124} />
             </View>
             <LinearGradient colors={['#FBEACB', '#F2D9A8']} start={{ x: 0.5, y: 0.1 }} end={{ x: 0.5, y: 1 }} style={pf.soulBadge}>
               <Text style={pf.soulBadgeEmoji}>{soul.emoji}</Text>
@@ -278,7 +278,7 @@ export default function ProfileScreen() {
         <SectionCard title="Your Avatar" action="Edit ✎">
           <View style={pf.avRow}>
             <View style={pf.avRing}>
-              <AvatarFace skin={avatar.skin} hairStyle={avatar.hairStyle} hairColor={avatar.hairColor} size={84} />
+              <AvatarFace skin={avatar.skin} hairStyle={avatar.hairStyle} hairColor={avatar.hairColor} shirtColor={avatar.shirtColor} size={84} />
             </View>
             <View style={pf.avSpecs}>
               <View style={pf.spec}>

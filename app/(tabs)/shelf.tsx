@@ -16,7 +16,7 @@ import { shelfChipColor } from '../../constants/shelfColors';
 import type { ReadingStatus, ShelfBook } from '../../types/book';
 
 // Fallback avatar if the builder was skipped (mirrors avatar.tsx / profile.tsx)
-const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317' };
+const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317', shirtColor: '#232A33' };
 
 // ── Design tokens (DESIGN.md) ──────────────────────────────────────────────
 const INK   = '#332C24';
@@ -143,7 +143,7 @@ export default function ShelfScreen() {
       <View style={[sl.topbar, { paddingTop: insets.top + 4 }]}>
         <View style={sl.avatarWrap}>
           <View style={sl.avatar}>
-            <AvatarFace skin={avatarCfg.skin} hairStyle={avatarCfg.hairStyle} hairColor={avatarCfg.hairColor} size={42} />
+            <AvatarFace skin={avatarCfg.skin} hairStyle={avatarCfg.hairStyle} hairColor={avatarCfg.hairColor} shirtColor={avatarCfg.shirtColor} size={42} />
           </View>
           <View style={sl.soul}><Text style={sl.soulEmoji}>{soulEmoji}</Text></View>
         </View>

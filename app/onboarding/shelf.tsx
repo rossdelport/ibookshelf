@@ -15,7 +15,7 @@ const TOTAL_STEPS  = 9;
 const CURRENT_STEP = 5; // segments 0–5 filled (screen 07)
 
 // Fallback appearance if the avatar builder was skipped (mirrors avatar.tsx defaults)
-const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317' };
+const DEFAULT_AVATAR = { skin: '#E8A87C', hairStyle: 1, hairColor: '#5C3317', shirtColor: '#232A33' };
 
 const AVATAR_SIZE = 132;
 
@@ -61,6 +61,7 @@ export default function ShelfScreen() {
                   skin={avatar.skin}
                   hairStyle={avatar.hairStyle}
                   hairColor={avatar.hairColor}
+                  shirtColor={avatar.shirtColor}
                   size={AVATAR_SIZE}
                 />
               </View>
