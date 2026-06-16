@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { supabase } from './supabase';
 import { useSyncStore } from '../store/syncStore';
-import type { Book, ShelfEntry, ShelfDef } from '../types/book';
+import type { Book, ShelfEntry, ShelfDef, ReadingSession } from '../types/book';
 
 // Sync layer between the local zustand stores and Supabase, hardened with a
 // persistent retry queue so a flaky network never silently drops a change.
@@ -56,6 +56,18 @@ export interface ProfileRow {
   shelves: ShelfDef[] | null;
 }
 
+export interface SessionRow {
+  id?: string;
+  user_id: string;
+  client_id: string; // the local ReadingSession.id — unique per (user, client_id)
+  book_id: string;
+  started_at: string;
+  ended_at: string;
+  seconds: number;
+  start_page: number | null;
+  end_page: number | null;
+}
+
 interface ProfileInput {
   username: string | null;
   librarySize: string | null;
@@ -80,15 +92,20 @@ interface ProfilePending {
   shelves: ShelfDef[];
 }
 
+type PendingSession =
+  | { op: 'upsert'; row: SessionRow }
+  | { op: 'delete'; userId: string; clientId: string };
+
 interface Queue {
   books: Record<string, PendingBook>; // keyed by local book id (auto-dedupes)
   profile: ProfilePending | null;
+  sessions: Record<string, PendingSession>; // keyed by local session id
 }
 
-let queue: Queue = { books: {}, profile: null };
+let queue: Queue = { books: {}, profile: null, sessions: {} };
 
 function pendingCount(): number {
-  return Object.keys(queue.books).length + (queue.profile ? 1 : 0);
+  return Object.keys(queue.books).length + (queue.profile ? 1 : 0) + Object.keys(queue.sessions).length;
 }
 
 function persistQueue() {
@@ -160,6 +177,31 @@ export function localFromRow(row: LibraryRow): { book: Book; entry: ShelfEntry }
   };
 }
 
+function sessionRowFromLocal(userId: string, s: ReadingSession): SessionRow {
+  return {
+    user_id: userId,
+    client_id: s.id,
+    book_id: s.bookId,
+    started_at: s.startedAt,
+    ended_at: s.endedAt,
+    seconds: s.seconds,
+    start_page: s.startPage ?? null,
+    end_page: s.endPage ?? null,
+  };
+}
+
+export function localFromSessionRow(row: SessionRow): ReadingSession {
+  return {
+    id: row.client_id,
+    bookId: row.book_id,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    seconds: row.seconds,
+    startPage: row.start_page ?? undefined,
+    endPage: row.end_page ?? undefined,
+  };
+}
+
 // ── Public push API (enqueue + schedule flush; no-ops when signed out) ──────
 export function pushBook(book: Book, entry: ShelfEntry) {
   if (!currentUserId) return;
@@ -184,6 +226,18 @@ export function pushProfile(profile: ProfileInput) {
     avatar: profile.avatar ?? null,
     shelves: profile.shelves,
   };
+  onQueueChanged();
+}
+
+export function pushSession(session: ReadingSession) {
+  if (!currentUserId) return;
+  queue.sessions[session.id] = { op: 'upsert', row: sessionRowFromLocal(currentUserId, session) };
+  onQueueChanged();
+}
+
+export function removeSession(sessionId: string) {
+  if (!currentUserId) return;
+  queue.sessions[sessionId] = { op: 'delete', userId: currentUserId, clientId: sessionId };
   onQueueChanged();
 }
 
@@ -240,6 +294,22 @@ async function flush() {
     }
   }
 
+  for (const id of Object.keys(queue.sessions)) {
+    const op = queue.sessions[id];
+    try {
+      if (op.op === 'upsert') {
+        const { error } = await supabase.from('reading_sessions').upsert(op.row, { onConflict: 'user_id,client_id' });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from('reading_sessions').delete().eq('user_id', op.userId).eq('client_id', op.clientId);
+        if (error) throw error;
+      }
+      delete queue.sessions[id];
+    } catch {
+      hadError = true;
+    }
+  }
+
   persistQueue();
   flushing = false;
 
@@ -275,6 +345,11 @@ export function setSyncUser(id: string | null) {
       if (owner !== id) delete queue.books[key];
     }
     if (queue.profile && queue.profile.id !== id) queue.profile = null;
+    for (const key of Object.keys(queue.sessions)) {
+      const op = queue.sessions[key];
+      const owner = op.op === 'upsert' ? op.row.user_id : op.userId;
+      if (owner !== id) delete queue.sessions[key];
+    }
     persistQueue();
   }
   currentUserId = id;
@@ -297,6 +372,9 @@ export async function initSync() {
   } catch {
     /* corrupt queue — start fresh */
   }
+  // Heal a queue persisted before `sessions` existed (older installs).
+  if (!queue.books) queue.books = {};
+  if (!queue.sessions) queue.sessions = {};
   bumpPending();
 
   const net = await NetInfo.fetch().catch(() => null);
@@ -323,6 +401,7 @@ export async function fetchRemoteState(): Promise<{
   profile: ProfileRow | null;
   books: Record<string, Book>;
   shelf: Record<string, ShelfEntry>;
+  sessions: ReadingSession[];
 } | null> {
   const uid = currentUserId;
   if (!uid) return null;
@@ -345,5 +424,15 @@ export async function fetchRemoteState(): Promise<{
     shelf[book.id] = entry;
   });
 
-  return { profile: (profile as ProfileRow | null) ?? null, books, shelf };
+  // Reading sessions are pulled separately and tolerantly: if the table isn't
+  // there yet (or errors), we keep local data and just skip remote sessions.
+  let sessions: ReadingSession[] = [];
+  try {
+    const { data: srows, error: serr } = await supabase.from('reading_sessions').select('*').eq('user_id', uid);
+    if (!serr && srows) sessions = (srows as SessionRow[]).map(localFromSessionRow);
+  } catch {
+    /* table may not exist yet */
+  }
+
+  return { profile: (profile as ProfileRow | null) ?? null, books, shelf, sessions };
 }

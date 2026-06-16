@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { AvatarFace } from '../../components/AvatarFace';
 import { BookCover } from '../../components/BookCover';
 import { ProgressSheet } from '../../components/ProgressSheet';
+import { ForYou } from '../../components/ForYou';
 import { PopOnSelect } from '../../components/anim';
 import { SyncStatus } from '../../components/SyncStatus';
 import { PlusIcon, SearchIcon } from '../../components/icons';
@@ -192,6 +193,10 @@ export default function ShelfScreen() {
             showsVerticalScrollIndicator={false}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.ink3} />}
           >
+            {/* ── For you (recommendations — only on the unfiltered view) ── */}
+            {filter.kind === 'all' && (
+              <View style={sl.forYou}><ForYou variant="full" /></View>
+            )}
             {sorted.length === 0 ? (
               <Text style={sl.filterEmpty}>No books here yet.</Text>
             ) : view === 'grid' ? (
@@ -289,6 +294,9 @@ const sl = StyleSheet.create({
 
   // ── Grid (clean covers, no plank)
   shelves: { flex: 1 },
+  // Cancels the content container's 22px side padding so the recs strip can
+  // scroll edge-to-edge while managing its own internal padding.
+  forYou: { marginHorizontal: -22, marginBottom: 4 },
   gridContent: { paddingHorizontal: 22, paddingTop: 12, gap: 22 },
   gridRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 18 },
   bookSlot: { flex: 1 },

@@ -8,7 +8,7 @@ import { ProgressSheet } from '../../components/ProgressSheet';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
 import { shelfChipColor } from '../../constants/shelfColors';
-import { PopOnSelect } from '../../components/anim';
+import { PopOnSelect, PressableScale } from '../../components/anim';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 import type { ReadingStatus } from '../../types/book';
 
@@ -162,6 +162,13 @@ export default function BookDetailScreen() {
             })}
           </View>
 
+          {/* ── Start a focus reading session ──────────── */}
+          {entry.status !== 'read' && entry.status !== 'did_not_finish' && (
+            <PressableScale style={d.startSession} onPress={() => router.push({ pathname: '/reading', params: { id } })}>
+              <Text style={d.startSessionText}>▶  Start reading session</Text>
+            </PressableScale>
+          )}
+
           {/* ── Reading progress (tap to update) ───────── */}
           {entry.status === 'reading' && (
             <>
@@ -263,6 +270,10 @@ const d = StyleSheet.create({
   chipTextActive: { color: colors.accentText },
   newShelfChip: { flexDirection: 'row', alignItems: 'center', borderRadius: 999, paddingVertical: 10, paddingHorizontal: 16, borderWidth: 1, borderColor: colors.lineStrong, borderStyle: 'dashed' },
   newShelfText: { fontFamily: fonts.semibold, ...ty.bodySm, color: colors.ink2 },
+
+  // ── Start reading session
+  startSession: { marginTop: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.accent, borderRadius: radius.button, paddingVertical: 16, ...shadow.button },
+  startSessionText: { fontFamily: fonts.semibold, ...ty.label, color: colors.accentText },
 
   // ── Progress
   progressCard: { backgroundColor: colors.card, borderRadius: radius.card, padding: 16, borderWidth: 1, borderColor: colors.line, ...shadow.cardSoft },

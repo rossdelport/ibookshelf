@@ -93,7 +93,8 @@ export default function Paywall() {
         <Pressable hitSlop={10} onPress={onRestore}><Text style={pw.restore}>Restore</Text></Pressable>
       </View>
 
-      <Text style={pw.h1}>Unlock the full story</Text>
+      <Text style={pw.noAds}>Upgrade to Pro</Text>
+      <Text style={pw.subtitle}>Unlock the full story</Text>
 
       <View style={pw.field}>
         <LinearGradient colors={['rgba(60,48,36,0.08)', 'rgba(60,48,36,0.03)', 'rgba(250,248,244,0)']} style={pw.fieldGlow} />
@@ -131,7 +132,8 @@ const pw = StyleSheet.create({
   pillGlyph: { fontSize: 11, color: colors.ink2 },
   pillText: { fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 2.5, color: colors.ink2 },
 
-  h1: { fontFamily: fonts.serifItalic, fontSize: 33, lineHeight: 38, letterSpacing: -0.5, color: colors.ink1, textAlign: 'center', marginTop: 12, paddingHorizontal: 36 },
+  noAds: { fontFamily: fonts.semibold, fontSize: 34, lineHeight: 38, letterSpacing: -0.6, color: colors.ink1, textAlign: 'center', marginTop: 12, paddingHorizontal: 24 },
+  subtitle: { fontFamily: fonts.serifItalic, fontSize: 19, lineHeight: 24, color: colors.ink2, textAlign: 'center', marginTop: 6, paddingHorizontal: 36 },
 
   field: { flex: 1, minHeight: 200, position: 'relative', marginVertical: 4 },
   fieldGlow: { position: 'absolute', left: '8%', right: '8%', top: '4%', bottom: '4%', borderRadius: 999 },

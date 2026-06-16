@@ -36,3 +36,16 @@ export interface ShelfDef {
 export interface ShelfBook extends Book {
   shelf: ShelfEntry;
 }
+
+// A single reading session — the unit behind time tracking, streaks and stats.
+// Shape mirrors the Supabase `reading_sessions` table for cloud sync. `id` is
+// the stable client id (also the table's `client_id`, for idempotent upserts).
+export interface ReadingSession {
+  id: string;
+  bookId: string;
+  startedAt: string; // ISO
+  endedAt: string;   // ISO
+  seconds: number;   // measured reading time (pauses excluded), user-editable
+  startPage?: number;
+  endPage?: number;
+}

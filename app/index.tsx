@@ -1,55 +1,16 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Redirect, router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import { View } from 'react-native';
+import { Redirect } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
-import { Logo } from '../components/Logo';
-import { colors, fonts, radius, type as ty, shadow } from '../constants/theme';
+import { colors } from '../constants/theme';
 
-export default function WelcomeScreen() {
+// Entry gate. The welcome UI itself lives at /welcome (an unambiguous route) so
+// that logout/delete can navigate back to it from inside the tabs — bare "/"
+// also matches the (tabs) index, so navigating to "/" from a tab just swaps
+// tabs instead of leaving the app. This screen only decides where to send you.
+export default function Index() {
   const session = useAuthStore((s) => s.session);
   const initializing = useAuthStore((s) => s.initializing);
 
-  if (initializing) return <View style={styles.safe} />;
-  if (session) return <Redirect href="/(tabs)" />;
-
-  return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.content}>
-        <View style={styles.iconShadow}>
-          <Logo size={140} tile />
-        </View>
-
-        <Text style={styles.title}>iBookshelf</Text>
-        <Text style={styles.subtitle}>Your home library, in your pocket</Text>
-        <Text style={styles.tagline}>Catalogue every book you own, never buy a duplicate, and keep notes as you read.</Text>
-      </View>
-
-      <View style={styles.footer}>
-        <TouchableOpacity style={styles.button} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/onboarding/unread'); }} activeOpacity={0.9}>
-          <Text style={styles.buttonText}>Get started</Text>
-        </TouchableOpacity>
-        <Text style={styles.loginText}>
-          Already have an account?{' '}
-          <Text style={styles.loginLink} onPress={() => router.push('/login')}>Log in</Text>
-        </Text>
-      </View>
-    </SafeAreaView>
-  );
+  if (initializing) return <View style={{ flex: 1, backgroundColor: colors.bg }} />;
+  return <Redirect href={session ? '/(tabs)' : '/welcome'} />;
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
-  content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 },
-  iconShadow: { width: 140, height: 140, borderRadius: 34, marginBottom: 32, ...shadow.card },
-  iconClip: { width: 140, height: 140, borderRadius: 34, overflow: 'hidden', backgroundColor: colors.chip },
-  iconGif: { width: '100%', height: '100%', transform: [{ scale: 1.05 }] },
-  title: { fontSize: 40, fontFamily: fonts.light, color: colors.ink1, letterSpacing: -1, marginBottom: 10 },
-  subtitle: { fontFamily: fonts.medium, ...ty.body, color: colors.ink2, marginBottom: 12 },
-  tagline: { fontFamily: fonts.regular, ...ty.bodyLg, color: colors.ink3, textAlign: 'center', maxWidth: 320 },
-  footer: { paddingHorizontal: 24, paddingBottom: 16, gap: 16 },
-  button: { backgroundColor: colors.accent, borderRadius: radius.button, paddingVertical: 18, alignItems: 'center', ...shadow.button },
-  buttonText: { color: colors.accentText, fontFamily: fonts.semibold, ...ty.label },
-  loginText: { textAlign: 'center', fontFamily: fonts.regular, ...ty.body, color: colors.ink3, paddingBottom: 8 },
-  loginLink: { color: colors.ink1, fontFamily: fonts.semibold },
-});

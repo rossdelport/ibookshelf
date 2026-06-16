@@ -18,8 +18,12 @@ export function Logo({ size = 96, tile = false, tileColor = colors.card }: { siz
   const spines = SPINES.map((c, i) => {
     const x = x0 + i * (w + gap);
     if (i === n - 1) {
-      const px = x + w / 2, py = top + h * 0.94;
-      return <Rect key={i} x={x} y={top} width={w} height={h} rx={r} fill={c} transform={`rotate(-13 ${px} ${py})`} />;
+      // The last spine leans left (rotated about a pivot near its base), which
+      // swings its top-left toward the pink spine. Shift it right so the lean
+      // still reads but its top-left keeps the same gap as the upright spines.
+      const gx = x + 6.86;
+      const px = gx + w / 2, py = top + h * 0.94;
+      return <Rect key={i} x={gx} y={top} width={w} height={h} rx={r} fill={c} transform={`rotate(-13 ${px} ${py})`} />;
     }
     return <Rect key={i} x={x} y={top} width={w} height={h} rx={r} fill={c} />;
   });

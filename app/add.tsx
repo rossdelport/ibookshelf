@@ -89,6 +89,16 @@ export default function AddBookScreen() {
             <Chevron />
           </TouchableOpacity>
 
+          {/* ── Import from Goodreads / StoryGraph ─────── */}
+          <TouchableOpacity style={a.importCard} activeOpacity={0.85} onPress={() => router.push('/import')}>
+            <View style={a.importIcon}><Text style={a.importGlyph}>📚</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={a.scanTitle}>Import your library</Text>
+              <Text style={a.scanSub}>Bring your books from Goodreads or StoryGraph</Text>
+            </View>
+            <Chevron />
+          </TouchableOpacity>
+
           {/* ── Search by title ────────────────────────── */}
           <Text style={a.sectionLabel}>Search by title or author</Text>
           <View style={a.searchField}>
@@ -168,6 +178,10 @@ const a = StyleSheet.create({
   scanIcon: { width: 46, height: 46, borderRadius: radius.chip, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   scanTitle: { fontFamily: fonts.semibold, ...ty.cardTitle, color: colors.ink1 },
   scanSub: { fontFamily: fonts.medium, ...ty.caption, color: colors.ink3, marginTop: 2 },
+
+  importCard: { flexDirection: 'row', alignItems: 'center', gap: 14, backgroundColor: colors.card, borderRadius: radius.card, padding: 14, marginTop: 12, borderWidth: 1, borderColor: colors.line, ...shadow.cardSoft },
+  importIcon: { width: 46, height: 46, borderRadius: radius.chip, backgroundColor: colors.chip, alignItems: 'center', justifyContent: 'center' },
+  importGlyph: { fontSize: 22 },
 
   sectionLabel: { fontFamily: fonts.medium, ...ty.eyebrow, textTransform: 'uppercase', color: colors.ink3, marginTop: 26, marginBottom: 10 },
 

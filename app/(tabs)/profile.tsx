@@ -7,10 +7,13 @@ import { AvatarFace } from '../../components/AvatarFace';
 import { AvatarBuilder, DEFAULT_DRAFT, type AvatarDraft } from '../../components/AvatarBuilder';
 import { Sheet } from '../../components/Sheet';
 import { CountUp } from '../../components/anim';
+import { ReadingChart } from '../../components/ReadingChart';
 import { ANIMALS } from '../../constants/animals';
 import { GENRES, genreEmoji } from '../../constants/genres';
 import { useUserStore } from '../../store/userStore';
 import { useBookshelfStore } from '../../store/bookshelfStore';
+import { useRecsStore } from '../../store/recsStore';
+import { useSessionsStore } from '../../store/sessionsStore';
 import { useAuthStore } from '../../store/authStore';
 import { supabase } from '../../lib/supabase';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
@@ -88,7 +91,9 @@ export default function ProfileScreen() {
     useAuthStore.getState().setSession(null);
     useBookshelfStore.getState().clear();
     useUserStore.getState().reset();
-    router.replace('/');
+    useRecsStore.getState().clear();
+    useSessionsStore.getState().clear();
+    router.replace('/welcome');
   };
   const confirmSignOut = () =>
     Alert.alert('Sign out?', 'You can sign back in anytime — your library stays backed up in the cloud.', [
@@ -111,7 +116,9 @@ export default function ProfileScreen() {
       useAuthStore.getState().setSession(null);
       useBookshelfStore.getState().clear();
       useUserStore.getState().reset();
-      router.replace('/');
+      useRecsStore.getState().clear();
+      useSessionsStore.getState().clear();
+      router.replace('/welcome');
     } catch {
       setDeleting(false);
       Alert.alert('Couldn’t delete account', 'Something went wrong. Please check your connection and try again.');
@@ -174,6 +181,11 @@ export default function ProfileScreen() {
           </View>
         </SectionCard>
 
+        {/* ── Reading Chart ────────────────────────────── */}
+        <SectionCard title="Reading Chart">
+          <ReadingChart />
+        </SectionCard>
+
         {/* ── Soul Animal ──────────────────────────────── */}
         <SectionCard title="Your Soul Animal" action="Change" onAction={openSoul}>
           <View style={pf.soulTop}>
@@ -215,6 +227,12 @@ export default function ProfileScreen() {
             <Text style={pf.tasteEmpty}>Add the genres you love to personalise your library.</Text>
           )}
         </SectionCard>
+
+        {/* TESTING ONLY — remove for production. The paywall ships gated off for
+            v1.0 (no entry point); this row lets us preview it. */}
+        <TouchableOpacity style={pf.testPaywall} onPress={() => router.push('/paywall')} activeOpacity={0.8}>
+          <Text style={pf.testPaywallText}>Preview paywall (testing)</Text>
+        </TouchableOpacity>
 
         {/* ── Account ──────────────────────────────────── */}
         <TouchableOpacity style={pf.signOut} onPress={confirmSignOut} activeOpacity={0.7}>
@@ -323,6 +341,9 @@ const pf = StyleSheet.create({
   // ── Account
   signOut: { alignSelf: 'center', marginTop: 22, paddingVertical: 12, paddingHorizontal: 24 },
   signOutText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.ink2 },
+  // TESTING ONLY — remove with the preview-paywall row above for production.
+  testPaywall: { alignSelf: 'center', marginTop: 8, marginBottom: 6, paddingVertical: 10, paddingHorizontal: 18, borderRadius: 999, borderWidth: 1, borderColor: colors.lineStrong, borderStyle: 'dashed' },
+  testPaywallText: { fontFamily: fonts.semibold, fontSize: 13, color: colors.ink2 },
   deleteAccount: { alignSelf: 'center', marginTop: 2, paddingVertical: 8, paddingHorizontal: 24 },
   deleteAccountText: { fontFamily: fonts.semibold, fontSize: 14, color: colors.danger },
   deleteCaption: { alignSelf: 'center', fontFamily: fonts.regular, ...ty.caption, color: colors.ink3, marginTop: 2, marginBottom: 6, textAlign: 'center' },

@@ -7,10 +7,13 @@ import * as Haptics from 'expo-haptics';
 import { AvatarFace } from '../../components/AvatarFace';
 import { ArrowIcon, PlayIcon, SearchIcon } from '../../components/icons';
 import { ProgressSheet } from '../../components/ProgressSheet';
+import { ForYou } from '../../components/ForYou';
 import { CountUp, PressableScale } from '../../components/anim';
 import { ANIMALS } from '../../constants/animals';
 import { useBookshelfStore } from '../../store/bookshelfStore';
 import { useUserStore } from '../../store/userStore';
+import { useSessionsStore } from '../../store/sessionsStore';
+import { currentStreak } from '../../lib/stats';
 import { forceSync } from '../../lib/sync';
 import { colors, fonts, radius, type as ty, shadow } from '../../constants/theme';
 import type { ShelfBook } from '../../types/book';
@@ -92,6 +95,8 @@ export default function HomeScreen() {
   const books = useBookshelfStore((s) => s.books);
   const shelf = useBookshelfStore((s) => s.shelf);
   const updateShelfEntry = useBookshelfStore((s) => s.updateShelfEntry);
+  const sessions = useSessionsStore((s) => s.sessions);
+  const readingStreak = useMemo(() => currentStreak(sessions), [sessions]);
   const profile = useUserStore((s) => s.profile);
   const [refreshing, setRefreshing] = useState(false);
   const [progressBook, setProgressBook] = useState<ShelfBook | null>(null);
@@ -143,18 +148,14 @@ export default function HomeScreen() {
   const more = owned.length - miniBooks.length;
 
   const openBook = (id: string) => router.push({ pathname: '/book/[id]', params: { id } });
+  // Primary action = start a focus reading session (the timer). Quick page-only
+  // updates stay available via the "Just update my page" link below.
   const onHeroCta = () => {
     if (!current) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (isReading) {
-      setProgressBook(current); // the easy track-reading entry point
-      return;
-    }
-    const now = new Date().toISOString();
-    updateShelfEntry(current.id, { status: 'reading', startedAt: current.shelf.startedAt ?? now });
-    openBook(current.id);
+    router.push({ pathname: '/reading', params: { id: current.id } });
   };
-  const ctaLabel = isReading ? 'Update progress' : current?.shelf.status === 'read' ? 'Read it again' : 'Start reading';
+  const ctaLabel = isReading ? 'Continue reading' : current?.shelf.status === 'read' ? 'Read it again' : 'Start reading';
 
   return (
     <>
@@ -181,6 +182,11 @@ export default function HomeScreen() {
       <View style={ho.greeting}>
         <Text style={ho.greetingH1}>{greet}{profile.username ? `, ${profile.username}` : ''}</Text>
         <Text style={ho.streak}>{owned.length} book{owned.length === 1 ? '' : 's'} in your library</Text>
+        {readingStreak > 0 && (
+          <PressableScale style={ho.streakPill} onPress={() => { Haptics.selectionAsync(); router.push('/stats'); }}>
+            <Text style={ho.streakPillText}>🔥 {readingStreak} day reading streak</Text>
+          </PressableScale>
+        )}
       </View>
 
       {current ? (
@@ -206,6 +212,11 @@ export default function HomeScreen() {
             {!isReading && <PlayIcon color={colors.accentText} />}
             <Text style={ho.startBtnText}>{ctaLabel}</Text>
           </PressableScale>
+          {isReading && (
+            <TouchableOpacity style={ho.updateLink} onPress={() => setProgressBook(current)} activeOpacity={0.7}>
+              <Text style={ho.updateLinkText}>Just update my page</Text>
+            </TouchableOpacity>
+          )}
         </>
       ) : (
         // ── Empty hero (no books yet) ───────────────
@@ -219,12 +230,12 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* ── Quick stats ──────────────────────────────── */}
-      <View style={ho.stats}>
+      {/* ── Quick stats (tap → reading life) ─────────── */}
+      <PressableScale style={ho.stats} onPress={() => { Haptics.selectionAsync(); router.push('/stats'); }}>
         <Stat value={owned.length} label="In Library" />
         <Stat value={reading.length} label="Reading" />
         <Stat value={readCount} label="Books Read" />
-      </View>
+      </PressableScale>
 
       {/* ── My Shelf card ────────────────────────────── */}
       <PressableScale style={ho.bigCard} onPress={() => router.navigate('/(tabs)/shelf')}>
@@ -244,6 +255,9 @@ export default function HomeScreen() {
           <Text style={ho.shelfEmpty}>Nothing here yet — scan a book to begin.</Text>
         )}
       </PressableScale>
+
+      {/* ── For you (quiet recommendation teaser → Shelf) ─────────────── */}
+      <ForYou variant="teaser" />
     </ScrollView>
     <ProgressSheet book={progressBook} visible={!!progressBook} onClose={() => setProgressBook(null)} />
     </>
@@ -265,6 +279,10 @@ const ho = StyleSheet.create({
   greeting: { paddingHorizontal: 22, paddingTop: 16 },
   greetingH1: { fontFamily: fonts.semibold, ...ty.titleSm, color: colors.ink1 },
   streak: { marginTop: 5, fontFamily: fonts.medium, ...ty.body, color: colors.ink2 },
+  streakPill: { alignSelf: 'flex-start', marginTop: 10, paddingVertical: 7, paddingHorizontal: 13, borderRadius: 999, backgroundColor: colors.card, borderWidth: 1, borderColor: colors.line, ...shadow.cardSoft },
+  streakPillText: { fontFamily: fonts.semibold, ...ty.bodySm, color: colors.ink1 },
+  updateLink: { alignSelf: 'center', marginTop: 12, paddingVertical: 4 },
+  updateLinkText: { fontFamily: fonts.semibold, ...ty.bodySm, color: colors.ink2 },
 
   // ── Hero
   hero: { alignItems: 'center', justifyContent: 'center', marginTop: 22, marginBottom: 4 },

@@ -9,7 +9,9 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import { useUserStore } from '../store/userStore';
 import { useBookshelfStore } from '../store/bookshelfStore';
-import { setSyncUser, fetchRemoteState, pushProfile, pushBook, initSync } from '../lib/sync';
+import { useSessionsStore } from '../store/sessionsStore';
+import { setSyncUser, fetchRemoteState, pushProfile, pushBook, pushSession, initSync } from '../lib/sync';
+import type { ReadingSession } from '../types/book';
 import { initSentry, sentryEnabled } from '../lib/sentry';
 import { ErrorScreen } from '../components/ErrorScreen';
 
@@ -57,12 +59,24 @@ async function handleSignedIn(userId: string) {
   Object.keys(localBooks).forEach((id) => {
     if (!remote.books[id] && localShelf[id]) pushBook(localBooks[id], localShelf[id]);
   });
+
+  // Reading sessions: union remote ∪ local (dedupe by id), then push any
+  // local-only sessions up so stats reconcile across devices.
+  const localSessions = useSessionsStore.getState().sessions;
+  const remoteById = new Map<string, ReadingSession>(remote.sessions.map((s) => [s.id, s]));
+  const merged = new Map(remoteById);
+  localSessions.forEach((s) => { if (!merged.has(s.id)) merged.set(s.id, s); });
+  useSessionsStore.getState().hydrate(
+    [...merged.values()].sort((a, b) => new Date(b.endedAt).getTime() - new Date(a.endedAt).getTime()),
+  );
+  localSessions.forEach((s) => { if (!remoteById.has(s.id)) pushSession(s); });
 }
 
 function handleSignedOut() {
   setSyncUser(null);
   useBookshelfStore.getState().clear();
   useUserStore.getState().reset();
+  useSessionsStore.getState().clear();
 }
 
 function RootLayout() {
@@ -102,6 +116,7 @@ function RootLayout() {
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="welcome" />
         <Stack.Screen name="login" />
         <Stack.Screen name="onboarding/unread" />
         <Stack.Screen name="onboarding/mirror" />
@@ -123,10 +138,13 @@ function RootLayout() {
           }}
         />
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="reading" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
+        <Stack.Screen name="stats" options={{ presentation: 'modal' }} />
         <Stack.Screen name="book/[id]" />
         <Stack.Screen name="wishlist-item" />
         <Stack.Screen name="search" />
         <Stack.Screen name="add" />
+        <Stack.Screen name="import" options={{ presentation: 'modal' }} />
         <Stack.Screen name="new-shelf" options={{ presentation: 'modal' }} />
         <Stack.Screen name="edit-shelf" options={{ presentation: 'modal' }} />
         <Stack.Screen name="manage-shelves" options={{ presentation: 'modal' }} />

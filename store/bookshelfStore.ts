@@ -8,6 +8,7 @@ interface BookshelfState {
   books: Record<string, Book>;
   shelf: Record<string, ShelfEntry>;
   addToShelf: (book: Book, status: ReadingStatus) => void;
+  importBooks: (items: { book: Book; entry: ShelfEntry }[]) => number;
   removeFromShelf: (bookId: string) => void;
   updateShelfEntry: (bookId: string, updates: Partial<ShelfEntry>) => void;
   toggleBookShelf: (bookId: string, shelfName: string) => void;
@@ -41,6 +42,26 @@ export const useBookshelfStore = create<BookshelfState>()(
           shelf: { ...state.shelf, [book.id]: entry },
         }));
         pushBook(book, entry); // no-op when signed out
+      },
+
+      // Bulk add from a CSV import. Skips books already in the library (by id,
+      // so ISBN/title matches aren't overwritten) and pushes each new one to
+      // the cloud. Returns how many were actually added.
+      importBooks: (items) => {
+        const { books: curBooks, shelf: curShelf } = get();
+        const books = { ...curBooks };
+        const shelf = { ...curShelf };
+        const added: { book: Book; entry: ShelfEntry }[] = [];
+        for (const { book, entry } of items) {
+          if (shelf[book.id]) continue;
+          books[book.id] = book;
+          shelf[book.id] = entry;
+          added.push({ book, entry });
+        }
+        if (!added.length) return 0;
+        set({ books, shelf });
+        added.forEach(({ book, entry }) => pushBook(book, entry));
+        return added.length;
       },
 
       removeFromShelf: (bookId) => {
